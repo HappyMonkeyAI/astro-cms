@@ -1,0 +1,28 @@
+{
+	"name": "@astro-cms/auth-password",
+	"version": "0.1.0",
+	"description": "Email + password authentication provider for EmDash (additive to passkeys)",
+	"type": "module",
+	"main": "src/auth.ts",
+	"exports": {
+		".": "./src/auth.ts",
+		"./admin": "./src/admin.tsx",
+		"./routes/*": "./src/routes/*"
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"license": "MIT",
+	"peerDependencies": {
+		"@cloudflare/kumo": "*",
+		"@emdash-cms/auth": "*",
+		"astro": ">=5",
+		"emdash": ">=1.3.0",
+		"kysely": "*",
+		"react": ">=18",
+		"ulidx": "*"
+	}
+}

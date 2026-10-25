@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: emdash
+      POSTGRES_PASSWORD: emdash-spike
+      POSTGRES_DB: emdash
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emdash"]
+      interval: 2s
+      retries: 30
+
+  emdash:
+    build:
+      context: .
+      args:
+        DATABASE_URL: postgres://emdash:emdash-spike@db:5432/emdash
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://emdash:emdash-spike@db:5432/emdash
+      EMDASH_SITE_URL: http://localhost:4321
+      UPLOADS_DIR: /app/data/uploads
+    ports:
+      - "4321:4321"
+    volumes:
+      - uploads:/app/data/uploads
+    restart: unless-stopped
+
+volumes:
+  pg-data:
+  uploads:
