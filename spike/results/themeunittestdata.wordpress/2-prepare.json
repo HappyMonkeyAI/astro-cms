@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "collectionsCreated": [],
+  "fieldsCreated": [
+    {
+      "collection": "pages",
+      "field": "excerpt"
+    }
+  ],
+  "errors": []
+}

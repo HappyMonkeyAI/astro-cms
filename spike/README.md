@@ -19,7 +19,7 @@ docker compose down -v           # wipe the database and uploads
 | # | Test | Status |
 |---|---|---|
 | 1 | Run on Node + Postgres in Docker | ✅ Works, with 3 serious caveats (F1–F3) |
-| 2a | WordPress import: theme unit test data (`fixtures/themeunittestdata.wordpress.xml`: 18 `[gallery]`, 15 `[caption]`, 6 `[embed]`, 6 `[video]`, 3 `[audio]`) | ⏳ Needs admin setup |
+| 2a | WordPress import: theme unit test data (`fixtures/themeunittestdata.wordpress.xml`) | ✅ Done. Content imports cleanly, but migration fidelity has major gaps (F11–F13). Reports: `results/` |
 | 2b | WordPress import: a real client WXR export | ⏳ Needs a file |
 | 3 | Drive the site through MCP with Claude (realistic editing tasks) | ⏳ Needs admin setup + token |
 | 4 | Write a trivial plugin + admin page | 🟡 Started: an auth provider (`emdash-site/packages/auth-password`), not yet a plugin |
@@ -58,4 +58,31 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
 - **F10 🟠 An unclaimed instance can be claimed by anyone who reaches it.**
   - This is true of core passkey setup as well as our provider.
   - The deployment recipe must keep a fresh instance private (localhost, a VPN or an IP allowlist) until setup is complete, or pre-provision the admin from the CLI.
+- **F11 🔴 The SSRF guard depends on Cloudflare DNS-over-HTTPS, even on Node.**
+  - Every server-side fetch to an external host (including WordPress media import) resolves hostnames through `https://cloudflare-dns.com/dns-query`. It does not use the system resolver, and this can't be configured.
+  - On networks that block public DoH (this one sinkholes `cloudflare-dns.com` to `0.0.0.0`, which is common on corporate and on-prem networks), every request fails with `SSRF_BLOCKED`. The import UI reports only "Failed to import media" (37 of 37).
+  - Our spike patch (`emdash-site/scripts/patch-emdash-ssrf.mjs`, run in the Dockerfile) uses `node:dns` on Node and keeps the non-public-IP validation. With it, 37 of 37 media files imported.
+  - No upstream issue exists. This is the second upstream contribution.
+- **F12 🟢 The core content import is solid.**
+  - Imported 79 of 79 entries (58 posts, 21 pages) in about 3 s with no errors. A re-import skipped all 79, so it's idempotent.
+  - Status mapping is correct, including **`future` → scheduled with the date kept**. This contradicts the earlier desk research that said scheduled dates are lost.
+  - All 68 categories and 110 tags were created, with 363 term assignments.
+  - Gutenberg blocks became typed Portable Text: columns, cover, gallery, embed, table, code, pullquote, buttons and file.
+  - Media is de-duplicated (37 files gave 36 media items).
+- **F13 🔴 What's lost or wrong after migration.** These gaps are the case for our migration tooling.
+
+  | Issue | Detail | Impact |
+  |---|---|---|
+  | **Shortcodes left as raw text** | 24 `[caption]`, 12 `[gallery]` and 1 `[audio]` render literally on the public site (e.g. `/posts/post-format-gallery` shows `[gallery columns="2"]`) | Visible breakage on any classic-editor site |
+  | **Media URLs not rewritten** | 194 references in 13 entries still point at the old WordPress host after a successful media import. Only 6 URLs were rewritten, probably because size variants (`-150x150`) and gallery/link URLs don't match the media map exactly | The site still depends on the old server, and images break when it's shut down |
+  | **Password-protected posts become public** | `template-password-protected` is published and its body ("should not be visible until the password is entered") is served to anonymous visitors | 🔴 **Privacy/security issue** in a migration |
+  | **Page hierarchy lost** | 13 child pages are flattened (`ec_pages` has no parent column), and URLs become `/pages/{slug}` | Navigation and URLs change |
+  | **No redirects** | 0 redirects created, and old permalinks (e.g. `/2008/09/03/template-sticky/`) return 404 | SEO and inbound links lost |
+  | **Menus not imported from WXR** | The analysis found 0 menus despite 70 `nav_menu_item` references (the 1 menu present comes from the seed) | Manual rebuild |
+  | **Comments not imported from WXR** | 33 in the source, 0 imported. The docs say this needs the exporter plugin | Lost unless the WP plugin route is used |
+  | **Duplicate author bylines** | 2 WP authors produced 7 bylines (`Theme Buster` ×4, `Theme Reviewer` ×2, plus a malformed `>themereviewteam`). Confirms open upstream issue #3817 | Messy author data |
+  | **`<!--more-->` / `<!--nextpage-->` dropped** | 4 and 5 in the source, 0 kept | Excerpts and pagination change |
+  | **Sticky flag lost** | There's no equivalent field | Minor |
+  | **Server-rendered blocks are empty** | e.g. `widgets-block-category` becomes an empty `htmlBlock` (as documented) | Minor |
+
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

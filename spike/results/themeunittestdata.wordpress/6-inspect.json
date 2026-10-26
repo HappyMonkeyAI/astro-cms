@@ -1,0 +1,139 @@
+{
+  "source": {
+    "posts": 58,
+    "pages": 21,
+    "byStatus": {
+      "publish": 77,
+      "future": 1,
+      "draft": 1
+    },
+    "shortcodes": [
+      "simple",
+      "gallery",
+      "caption",
+      "audio"
+    ],
+    "passwordProtected": [
+      "template-password-protected"
+    ],
+    "sticky": [
+      "template-sticky"
+    ],
+    "childPages": 13,
+    "moreTags": 4,
+    "nextpageTags": 5,
+    "comments": 33
+  },
+  "stored": {
+    "posts": 58,
+    "pages": 22,
+    "statusMapping": {
+      "publish → published": 77,
+      "future → scheduled (scheduled)": 1,
+      "draft → draft": 1
+    },
+    "missing": [],
+    "slugChanged": [
+      {
+        "from": "",
+        "to": "draft"
+      }
+    ],
+    "blockTypes": {
+      "block": 500,
+      "htmlBlock": 86,
+      "columns": 19,
+      "break": 25,
+      "image": 39,
+      "buttons": 1,
+      "gallery": 10,
+      "embed": 9,
+      "cover": 21,
+      "file": 3,
+      "code": 10,
+      "pullquote": 4,
+      "table": 8,
+      "button": 10
+    },
+    "shortcodesLeftAsText": {
+      "caption": 24,
+      "simple": 1,
+      "gallery": 12,
+      "audio": 1
+    },
+    "leftoverExamples": [
+      {
+        "slug": "post-format-image-linked",
+        "shortcode": "[caption id=\"attachment_612\" align=\"aligncenter\" width=\"640\" caption=\"Chunk of resinous bl"
+      },
+      {
+        "slug": "post-format-image-linked",
+        "shortcode": "[/caption]"
+      },
+      {
+        "slug": "post-format-image-caption",
+        "shortcode": "[caption id=\"attachment_754\" align=\"alignnone\" width=\"604\"]"
+      },
+      {
+        "slug": "post-format-image-caption",
+        "shortcode": "[/caption]"
+      },
+      {
+        "slug": "post-format-standard",
+        "shortcode": "[simple boat]"
+      },
+      {
+        "slug": "post-format-gallery",
+        "shortcode": "[gallery]"
+      },
+      {
+        "slug": "post-format-gallery",
+        "shortcode": "[gallery columns=\"1\"]"
+      },
+      {
+        "slug": "post-format-gallery",
+        "shortcode": "[gallery columns=\"2\"]"
+      }
+    ],
+    "externalMediaUrlRefs": 194,
+    "entriesStillReferencingOldHost": 13,
+    "emptyHtmlBlocks": [
+      "widgets-block-category"
+    ],
+    "moreTagsInContent": 0,
+    "nextpageTagsInContent": 0,
+    "featuredImages": 6,
+    "media": 36,
+    "bylines": [
+      {
+        "display_name": "Theme Buster",
+        "n": 4
+      },
+      {
+        "display_name": "Theme Reviewer",
+        "n": 2
+      },
+      {
+        "display_name": ">themereviewteam",
+        "n": 1
+      }
+    ],
+    "entriesWithByline": 79,
+    "taxonomyTerms": [
+      {
+        "taxonomy": "category",
+        "terms": 68
+      },
+      {
+        "taxonomy": "tag",
+        "terms": 114
+      }
+    ],
+    "termAssignments": 363,
+    "menus": 1,
+    "menuItems": 4,
+    "redirects": 0,
+    "comments": 0,
+    "revisions": 0
+  }
+}

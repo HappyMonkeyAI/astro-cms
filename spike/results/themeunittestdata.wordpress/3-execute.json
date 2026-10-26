@@ -1,0 +1,116 @@
+{
+  "imported": 79,
+  "skipped": 0,
+  "errors": [],
+  "byCollection": {
+    "posts": 58,
+    "pages": 21
+  },
+  "chunks": [
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {
+          "category": 68,
+          "tag": 114
+        },
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": [
+          "post_format"
+        ]
+      }
+    },
+    {
+      "success": true,
+      "imported": 18,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {
+        "posts": 8,
+        "pages": 10
+      },
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 18,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 2,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {
+        "posts": 2
+      },
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 10,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 30,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {
+        "posts": 22,
+        "pages": 8
+      },
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 216,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 29,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {
+        "posts": 26,
+        "pages": 3
+      },
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 119,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {},
+      "sections": {
+        "created": 0,
+        "skipped": 0
+      }
+    }
+  ]
+}

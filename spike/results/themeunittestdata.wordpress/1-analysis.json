@@ -1,0 +1,420 @@
+{
+  "site": {
+    "title": "Theme Unit Test Data",
+    "url": "https://wpthemetestdata.wordpress.com"
+  },
+  "postTypes": [
+    {
+      "name": "post",
+      "count": 58,
+      "suggestedCollection": "posts",
+      "requiredFields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true,
+          "searchable": true
+        },
+        {
+          "slug": "content",
+          "label": "Content",
+          "type": "portableText",
+          "required": false,
+          "searchable": true
+        },
+        {
+          "slug": "excerpt",
+          "label": "Excerpt",
+          "type": "text",
+          "required": false
+        },
+        {
+          "slug": "featured_image",
+          "label": "Featured Image",
+          "type": "image",
+          "required": false
+        }
+      ],
+      "schemaStatus": {
+        "exists": true,
+        "fieldStatus": {
+          "title": {
+            "status": "compatible",
+            "existingType": "string",
+            "requiredType": "string"
+          },
+          "content": {
+            "status": "compatible",
+            "existingType": "portableText",
+            "requiredType": "portableText"
+          },
+          "excerpt": {
+            "status": "compatible",
+            "existingType": "text",
+            "requiredType": "text"
+          },
+          "featured_image": {
+            "status": "compatible",
+            "existingType": "image",
+            "requiredType": "image"
+          }
+        },
+        "canImport": true
+      }
+    },
+    {
+      "name": "page",
+      "count": 21,
+      "suggestedCollection": "pages",
+      "requiredFields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true,
+          "searchable": true
+        },
+        {
+          "slug": "content",
+          "label": "Content",
+          "type": "portableText",
+          "required": false,
+          "searchable": true
+        },
+        {
+          "slug": "excerpt",
+          "label": "Excerpt",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "schemaStatus": {
+        "exists": true,
+        "fieldStatus": {
+          "title": {
+            "status": "compatible",
+            "existingType": "string",
+            "requiredType": "string"
+          },
+          "content": {
+            "status": "compatible",
+            "existingType": "portableText",
+            "requiredType": "portableText"
+          },
+          "excerpt": {
+            "status": "missing",
+            "requiredType": "text"
+          }
+        },
+        "canImport": true
+      }
+    }
+  ],
+  "attachments": {
+    "count": 37,
+    "items": [
+      {
+        "id": 611,
+        "title": "canola2",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/canola2.jpg",
+        "filename": "canola2.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 616,
+        "title": "dsc20050727_091048_222",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc20050727_091048_222.jpg",
+        "filename": "dsc20050727_091048_222.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 617,
+        "title": "dsc20050813_115856_52",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc20050813_115856_52.jpg",
+        "filename": "dsc20050813_115856_52.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 754,
+        "title": "Bell on Wharf",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/100_5478.jpg",
+        "filename": "100_5478.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 755,
+        "title": "Golden Gate Bridge",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/100_5540.jpg",
+        "filename": "100_5540.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 756,
+        "title": "Sunburst Over River",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/cep00032.jpg",
+        "filename": "cep00032.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 757,
+        "title": "Boardwalk",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dcp_2082.jpg",
+        "filename": "dcp_2082.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 758,
+        "title": "Yachtsody in Blue",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc03149.jpg",
+        "filename": "dsc03149.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 759,
+        "title": "Rain Ripples",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc04563.jpg",
+        "filename": "dsc04563.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 760,
+        "title": "Sydney Harbor Bridge",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc09114.jpg",
+        "filename": "dsc09114.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 761,
+        "title": "Wind Farm",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc20050102_192118_51.jpg",
+        "filename": "dsc20050102_192118_51.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 762,
+        "title": "Antique Farm Machinery",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc20051220_160808_102.jpg",
+        "filename": "dsc20051220_160808_102.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 764,
+        "title": "Rusty Rail",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dsc20051220_173257_119.jpg",
+        "filename": "dsc20051220_173257_119.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 765,
+        "title": "Sea and Rocks",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/dscn3316.jpg",
+        "filename": "dscn3316.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 766,
+        "title": "Big Sur",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/michelle_049.jpg",
+        "filename": "michelle_049.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 767,
+        "title": "Windmill",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/windmill.jpg",
+        "filename": "windmill.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 768,
+        "title": "Huatulco Coastline",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/img_0513-1.jpg",
+        "filename": "img_0513-1.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 769,
+        "title": "Brazil Beach",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/img_0747.jpg",
+        "filename": "img_0747.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 770,
+        "title": "Huatulco Coastline",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/img_0767.jpg",
+        "filename": "img_0767.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 771,
+        "title": "Boat Barco Texture",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/img_8399.jpg",
+        "filename": "img_8399.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 807,
+        "title": "Resinous",
+        "url": "https://wpthemetestdata.files.wordpress.com/2012/06/dsc20040724_152504_532.jpg",
+        "filename": "dsc20040724_152504_532.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 821,
+        "title": "St. Louis Blues",
+        "url": "https://wpthemetestdata.files.wordpress.com/2008/06/originaldixielandjazzbandwithalbernard-stlouisblues.mp3",
+        "filename": "originaldixielandjazzbandwithalbernard-stlouisblues.mp3",
+        "mimeType": "audio/mpeg"
+      },
+      {
+        "id": 827,
+        "title": "OLYMPUS DIGITAL CAMERA",
+        "url": "https://wpthemetestdata.files.wordpress.com/2010/08/manhattansummer.jpg",
+        "filename": "manhattansummer.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 967,
+        "title": "Image Alignment 580x300",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/image-alignment-580x300.jpg",
+        "filename": "image-alignment-580x300.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 968,
+        "title": "Image Alignment 150x150",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/image-alignment-150x150.jpg",
+        "filename": "image-alignment-150x150.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1022,
+        "title": "Horizontal Featured Image",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/featured-image-horizontal.jpg",
+        "filename": "featured-image-horizontal.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1023,
+        "title": "I Am Worth Loving Wallpaper",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/soworthloving-wallpaper.jpg",
+        "filename": "soworthloving-wallpaper.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1025,
+        "title": "Image Alignment 300x200",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/image-alignment-300x200.jpg",
+        "filename": "image-alignment-300x200.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1027,
+        "title": "Vertical Featured Image",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/featured-image-vertical.jpg",
+        "filename": "featured-image-vertical.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1029,
+        "title": "Image Alignment 1200x4002",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/03/image-alignment-1200x4002.jpg",
+        "filename": "image-alignment-1200x4002.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1045,
+        "title": "Unicorn Wallpaper",
+        "url": "https://wpthemetestdata.files.wordpress.com/2012/12/unicorn-wallpaper.jpg",
+        "filename": "unicorn-wallpaper.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1628,
+        "title": "triforce-wallpaper",
+        "url": "https://wpthemetestdata.files.wordpress.com/2010/08/triforce-wallpaper.jpg",
+        "filename": "triforce-wallpaper.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1686,
+        "title": "dsc20040724_152504_532",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/09/dsc20040724_152504_532.jpg",
+        "filename": "dsc20040724_152504_532.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1687,
+        "title": "dsc20050604_133440_34211",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/09/dsc20050604_133440_34211.jpg",
+        "filename": "dsc20050604_133440_34211.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1690,
+        "title": "2014-slider-mobile-behavior",
+        "url": "https://wpthemetestdata.files.wordpress.com/2013/12/2014-slider-mobile-behavior.mov",
+        "filename": "2014-slider-mobile-behavior.mov",
+        "mimeType": "video/quicktime"
+      },
+      {
+        "id": 1691,
+        "title": "dsc20050315_145007_132",
+        "url": "https://wpthemetestdata.files.wordpress.com/2014/01/dsc20050315_145007_132.jpg",
+        "filename": "dsc20050315_145007_132.jpg",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "id": 1692,
+        "title": "spectacles",
+        "url": "https://wpthemetestdata.files.wordpress.com/2014/01/spectacles.gif",
+        "filename": "spectacles.gif",
+        "mimeType": "image/gif"
+      }
+    ]
+  },
+  "categories": 68,
+  "tags": 110,
+  "authors": [
+    {
+      "login": "themedemos",
+      "email": "themeshaperwp+demos@gmail.com",
+      "displayName": "Theme Buster",
+      "postCount": 122
+    },
+    {
+      "login": "themereviewteam",
+      "email": "themereviewteam@gmail.com",
+      "displayName": "Theme Reviewer",
+      "postCount": 25
+    }
+  ],
+  "customFields": [
+    {
+      "key": "_thumbnail_id",
+      "count": 6,
+      "samples": [
+        "761",
+        "1022",
+        "1027"
+      ],
+      "suggestedField": "featured_image",
+      "suggestedType": "string",
+      "isInternal": false
+    },
+    {
+      "key": "enclosure",
+      "count": 3,
+      "samples": [
+        "https://wpthemetestdata.files.wordpress.com/2013/12/2014-slider-mobile-behavior.mov\n29881426\nvideo/q",
+        "https://wpthemetestdata.files.wordpress.com/2008/06/originaldixielandjazzbandwithalbernard-stlouisbl",
+        "https://wpthemetestdata.files.wordpress.com/2013/12/2014-slider-mobile-behavior.mov\n29881426\nvideo/q"
+      ],
+      "suggestedField": "enclosure",
+      "suggestedType": "string",
+      "isInternal": false
+    }
+  ]
+}

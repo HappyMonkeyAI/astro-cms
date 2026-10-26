@@ -1,0 +1,102 @@
+{
+  "imported": 0,
+  "skipped": 79,
+  "errors": [],
+  "byCollection": {},
+  "chunks": [
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {
+          "category": 68,
+          "tag": 114
+        },
+        "assignments": 0,
+        "missingTaxonomies": [
+          "post_format"
+        ]
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 18,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 2,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 30,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 29,
+      "errors": [],
+      "byCollection": {},
+      "taxonomies": {
+        "termsCreated": {},
+        "termsReused": {},
+        "assignments": 0,
+        "missingTaxonomies": []
+      }
+    },
+    {
+      "success": true,
+      "imported": 0,
+      "skipped": 0,
+      "errors": [],
+      "byCollection": {},
+      "sections": {
+        "created": 0,
+        "skipped": 0
+      }
+    }
+  ]
+}

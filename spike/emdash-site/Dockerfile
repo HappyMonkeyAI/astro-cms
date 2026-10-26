@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages ./packages
 RUN npm install --no-audit --no-fund
+COPY scripts ./scripts
+RUN node scripts/patch-emdash-ssrf.mjs
 COPY . .
 ARG EMDASH_SITE_URL=http://localhost:4321
 ENV EMDASH_SITE_URL=$EMDASH_SITE_URL
