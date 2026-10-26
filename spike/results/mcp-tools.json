@@ -1,0 +1,3701 @@
+[
+  {
+    "name": "content_list",
+    "title": "List Content",
+    "description": "List content items in a collection with optional filtering and pagination. Returns items sorted by the specified field. Use the nextCursor value from the response to fetch the next page. Status can be 'draft', 'published', or 'scheduled'. If no status is given, all non-trashed items are returned.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug (e.g. 'posts', 'pages')"
+        },
+        "status": {
+          "description": "Filter by content status",
+          "type": "string",
+          "enum": [
+            "draft",
+            "published",
+            "scheduled"
+          ]
+        },
+        "limit": {
+          "description": "Max items to return (default 50, max 100)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "description": "Pagination cursor from a previous response",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "orderBy": {
+          "description": "Field to sort by: 'createdAt' (default), 'updatedAt', 'publishedAt', 'scheduledAt', 'slug', 'status', 'locale', or a field slug that is indexed or set as the collection's titleField or dateField",
+          "type": "string"
+        },
+        "order": {
+          "description": "Sort direction (default 'desc')",
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        },
+        "locale": {
+          "description": "Filter by locale (e.g. 'en', 'fr'). Only relevant when i18n is enabled.",
+          "type": "string"
+        },
+        "markdown": {
+          "description": "Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_get",
+    "title": "Get Content",
+    "description": "Get a single content item by its ID or slug. Returns the full content data including all field values, metadata, and a _rev token. content_update, content_publish, content_unpublish and content_discard_draft require that token, so read the item here before calling them.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug (e.g. 'posts', 'pages')"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID (ULID) or slug"
+        },
+        "locale": {
+          "description": "Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution; IDs are globally unique.",
+          "type": "string"
+        },
+        "markdown": {
+          "description": "Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_create",
+    "title": "Create Content",
+    "description": "Create a new content item in a collection. The 'data' object should contain field values matching the collection's schema (use schema_get_collection to check). For rich text (portableText) fields, pass a Markdown string — converted to Portable Text automatically; prefer this. Pass a Portable Text JSON array only for complex content Markdown can't express (custom blocks, embeds). A slug is auto-generated if not provided. Items are created as 'draft' by default — use content_publish or pass status='published' to make them live. `seo` and `publishedAt` can be set in the same call; `publishedAt` requires content:publish_any.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug (e.g. 'posts', 'pages')"
+        },
+        "data": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {},
+          "description": "Field values as key-value pairs matching the collection schema"
+        },
+        "slug": {
+          "description": "URL slug (auto-generated from title if omitted)",
+          "type": "string"
+        },
+        "status": {
+          "description": "Initial status (default 'draft'). Requires publish permission.",
+          "type": "string",
+          "enum": [
+            "draft",
+            "published"
+          ]
+        },
+        "locale": {
+          "description": "Locale for this content (e.g. 'fr'). Defaults to default locale.",
+          "type": "string"
+        },
+        "translationOf": {
+          "description": "ID of the content item this is a translation of. Links items in the same translation group.",
+          "type": "string"
+        },
+        "migrateBlocks": {
+          "description": "Allow retained blocks to migrate to their type's active version",
+          "type": "boolean"
+        },
+        "replaceBlocks": {
+          "description": "Treat an entirely keyless blocks array as an explicit replacement",
+          "type": "boolean"
+        },
+        "bylines": {
+          "description": "Bylines to credit. Each entry references an existing byline by id (see byline_list / byline_create) with an optional roleLabel. The first entry becomes the primary byline.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ContentBylineInput"
+          }
+        },
+        "taxonomies": {
+          "description": "Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "seo": {
+          "description": "Per-content SEO metadata. Only valid for collections with SEO enabled (see schema_get_collection.hasSeo).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ContentSeoInput"
+            }
+          ]
+        },
+        "publishedAt": {
+          "description": "Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Useful for content migrations.",
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "collection",
+        "data"
+      ],
+      "definitions": {
+        "ContentBylineInput": {
+          "type": "object",
+          "properties": {
+            "bylineId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roleLabel": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "bylineId"
+          ]
+        },
+        "ContentSeoInput": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "canonical": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "noIndex": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_update",
+    "title": "Update Content",
+    "description": "Update an existing content item. Only include fields you want to change in the 'data' object — unspecified fields are left unchanged. Rich text (portableText) fields accept a Markdown string (recommended, converted automatically); use a Portable Text JSON array only for complex content Markdown can't express (custom blocks, embeds). Requires the _rev token from content_get, so read the item before updating it: the update fails if the item changed since that read. When status is not set, a change to a published item is staged as a draft, so the response shows the new values while the live version keeps the old ones until content_publish. `seo` and `bylines` are persisted alongside the field updates in a single transaction. `publishedAt` requires the content:publish_any permission and is useful for migrations or correcting historical dates.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "locale": {
+          "description": "Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution; IDs are globally unique.",
+          "type": "string"
+        },
+        "data": {
+          "description": "Field values to update (only include changed fields)",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "slug": {
+          "description": "New URL slug",
+          "type": "string"
+        },
+        "status": {
+          "description": "New status. Setting to 'published' requires publish permission. Setting to 'draft' unpublishes the item and also requires publish permission.",
+          "type": "string",
+          "enum": [
+            "draft",
+            "published"
+          ]
+        },
+        "seo": {
+          "description": "Per-content SEO metadata. Only valid for collections with SEO enabled (see schema_get_collection.hasSeo). Fields not included are left unchanged; pass null to clear.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ContentSeoInput"
+            }
+          ]
+        },
+        "bylines": {
+          "description": "Replace the byline list for this item. The first entry becomes the primary byline. Pass an empty array to clear all bylines.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ContentBylineInput"
+          }
+        },
+        "taxonomies": {
+          "description": "Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "publishedAt": {
+          "description": "Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "migrateBlocks": {
+          "description": "Allow existing blocks to migrate to their type's active version",
+          "type": "boolean"
+        },
+        "replaceBlocks": {
+          "description": "Treat an entirely keyless blocks array as an explicit replacement",
+          "type": "boolean"
+        },
+        "_rev": {
+          "type": "string",
+          "description": "Revision token proving you have read the current item. Call content_get first and pass back the _rev it returns. If this call fails with CONFLICT the item changed in the meantime: call content_get again and retry with the new token."
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id",
+        "_rev"
+      ],
+      "definitions": {
+        "ContentSeoInput": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "canonical": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "noIndex": {
+              "type": "boolean"
+            }
+          }
+        },
+        "ContentBylineInput": {
+          "type": "object",
+          "properties": {
+            "bylineId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roleLabel": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "bylineId"
+          ]
+        }
+      }
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_delete",
+    "title": "Delete Content (Trash)",
+    "description": "Soft-delete a content item by moving it to the trash. The item can be restored later with content_restore, or permanently deleted with content_permanent_delete.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_restore",
+    "title": "Restore Content",
+    "description": "Restore a soft-deleted content item from the trash. It comes back as a draft with no schedule, even if it was published or scheduled before it was trashed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_permanent_delete",
+    "title": "Permanently Delete Content",
+    "description": "Permanently and irreversibly delete a trashed content item. The item must be in the trash first (use content_delete). This cannot be undone.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_publish",
+    "title": "Publish Content",
+    "description": "Publish a content item, making it live on the site. Creates a published revision from the current draft. Further edits create a new draft without affecting the live version until re-published. Pass `publishedAt` to backdate (e.g. when migrating content from another CMS) — this requires the content:publish_any permission. Without `publishedAt`, the existing `published_at` is preserved on re-publish (idempotent) and falls back to the current time on first publish.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "_rev": {
+          "type": "string",
+          "description": "Revision token proving you have read the current item. Call content_get first and pass back the _rev it returns. If this call fails with CONFLICT the item changed in the meantime: call content_get again and retry with the new token."
+        },
+        "publishedAt": {
+          "description": "Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            {
+              "type": "string",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          ]
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id",
+        "_rev"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_unpublish",
+    "title": "Unpublish Content",
+    "description": "Unpublish a content item, reverting it to draft status. It will no longer be visible on the live site, but its content and publication date are preserved. Any pending schedule is cancelled.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "_rev": {
+          "type": "string",
+          "description": "Revision token proving you have read the current item. Call content_get first and pass back the _rev it returns. If this call fails with CONFLICT the item changed in the meantime: call content_get again and retry with the new token."
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id",
+        "_rev"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_schedule",
+    "title": "Schedule Content",
+    "description": "Schedule a content item for future publication. It will be automatically published at the specified date/time. The scheduledAt value must be an ISO 8601 datetime string in the future (e.g. '2025-06-01T09:00:00Z').",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "_rev": {
+          "type": "string",
+          "description": "Revision token proving you have read the current item. Call content_get first and pass back the _rev it returns. If this call fails with CONFLICT the item changed in the meantime: call content_get again and retry with the new token."
+        },
+        "scheduledAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            {
+              "type": "string",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          ],
+          "description": "ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')"
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id",
+        "_rev",
+        "scheduledAt"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_unschedule",
+    "title": "Cancel Scheduled Publication",
+    "description": "Cancel a previously scheduled publication. Scheduled drafts return to draft status; published items stay published. The scheduledAt timestamp is cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_compare",
+    "title": "Compare Live vs Draft",
+    "description": "Compare the published (live) version of a content item with its current draft. Returns both versions and a flag indicating whether there are changes. Useful for reviewing unpublished edits before publishing.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_discard_draft",
+    "title": "Discard Draft",
+    "description": "Discard the current draft revision. Published content reverts to its live version; an item without a pending draft is unchanged.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "_rev": {
+          "type": "string",
+          "description": "Revision token proving you have read the current item. Call content_get first and pass back the _rev it returns. If this call fails with CONFLICT the item changed in the meantime: call content_get again and retry with the new token."
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "id",
+        "_rev"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_list_trashed",
+    "title": "List Trashed Content",
+    "description": "List soft-deleted content items in a collection's trash. These items can be restored with content_restore or permanently deleted with content_permanent_delete.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "limit": {
+          "description": "Max items (default 50)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "description": "Pagination cursor",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "collection"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_duplicate",
+    "title": "Duplicate Content",
+    "description": "Create a copy of an existing content item. The duplicate is created as a draft with '(Copy)' appended to the title and an auto-generated slug.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug to duplicate"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "content_translations",
+    "title": "Get Content Translations",
+    "description": "Get all locale variants of a content item. Returns the translation group and a summary of each locale version (id, locale, slug, status). Only relevant when i18n is enabled on the site.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "byline_list",
+    "title": "List Bylines",
+    "description": "List bylines (author/contributor credits) with optional filtering and pagination. Bylines are standalone records referenced by content items; use the returned id with content_create/content_update or byline_get. Use the nextCursor value from the response to fetch the next page.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "search": {
+          "description": "Filter by display name or slug substring",
+          "type": "string"
+        },
+        "isGuest": {
+          "description": "Filter by guest (true) or linked-user (false)",
+          "type": "boolean"
+        },
+        "userId": {
+          "description": "Filter to the byline linked to a CMS user ID",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Filter by locale (omit for all)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Max items (default 50)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "description": "Pagination cursor",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "byline_get",
+    "title": "Get Byline",
+    "description": "Get a single byline by its ID, including bio, avatar, website, linked user, and any custom fields.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Byline ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "byline_create",
+    "title": "Create Byline",
+    "description": "Create a new byline (author/contributor credit). The slug must be unique and contain only lowercase letters, digits, and hyphens. Link the byline to a CMS user via userId, or leave it as a standalone guest credit. A translation created with translationOf keeps the source's userId unless you pass one; pass null to leave it unlinked. The returned id can then be passed to content_create/content_update bylines.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bio": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "avatarMediaId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "websiteUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "userId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isGuest": {
+          "type": "boolean"
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[a-z0-9]{2,8})*$"
+        },
+        "translationOf": {
+          "type": "string",
+          "minLength": 1
+        },
+        "customFields": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "slug",
+        "displayName"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "byline_update",
+    "title": "Update Byline",
+    "description": "Update an existing byline. Any field can be omitted to leave it unchanged. Renaming the slug must not collide with another byline.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Byline ID to update"
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bio": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "avatarMediaId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "websiteUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "userId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isGuest": {
+          "type": "boolean"
+        },
+        "customFields": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "byline_delete",
+    "title": "Delete Byline",
+    "description": "Permanently delete a byline. Any content crediting this byline loses the association, and it is cleared as a primary byline where set.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Byline ID to delete"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "byline_translations",
+    "title": "List Byline Translations",
+    "description": "Return every locale variant of a byline, identified via its shared translation_group.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Byline id (or translation_group)"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_list_collections",
+    "title": "List Collections",
+    "description": "List all content collections defined in the CMS. Each collection represents a content type (e.g. posts, pages, products) with its own schema and database table. Returns slug, label, supported features, and timestamps.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_get_collection",
+    "title": "Get Collection Schema",
+    "description": "Get detailed info about a collection including all field definitions. Fields describe the data model: name, type (string, text, number, boolean, datetime, portableText, image, reference, json, select, multiSelect, slug, blocks), constraints, and validation rules. Blocks fields include every allowed and retired block type version. Use this to understand what data content_create and content_update expect.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "Collection slug (e.g. 'posts'). Use schema_list_collections to see available slugs."
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_list_block_types",
+    "title": "List Block Types",
+    "description": "List every database-owned block type and all retained versions.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_get_block_type",
+    "title": "Get Block Type",
+    "description": "Get one block type, including active, inactive, and historical versions.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "Block type slug"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_create_block_type",
+    "title": "Create Block Type",
+    "description": "Create a block type with active version 1.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 63,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "text",
+                  "url",
+                  "number",
+                  "integer",
+                  "boolean",
+                  "datetime",
+                  "select",
+                  "multiSelect",
+                  "portableText",
+                  "image",
+                  "file",
+                  "repeater"
+                ]
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "defaultValue": {},
+              "validation": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "minLength": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxLength": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "pattern": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "subFields": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9_]*$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "string",
+                            "text",
+                            "url",
+                            "number",
+                            "integer",
+                            "boolean",
+                            "datetime",
+                            "select",
+                            "image"
+                          ]
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "type",
+                        "label"
+                      ]
+                    }
+                  },
+                  "minItems": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxItems": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "allowedMimeTypes": {
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "darkVariant": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "slug",
+              "label",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "slug",
+        "label",
+        "fields"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_update_block_type",
+    "title": "Update Block Type",
+    "description": "Update presentation or compatible fields in place. Set breaking to create an inactive retained version.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string"
+        },
+        "expectedFingerprint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 63,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "text",
+                  "url",
+                  "number",
+                  "integer",
+                  "boolean",
+                  "datetime",
+                  "select",
+                  "multiSelect",
+                  "portableText",
+                  "image",
+                  "file",
+                  "repeater"
+                ]
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "defaultValue": {},
+              "validation": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "minLength": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxLength": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "pattern": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "subFields": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9_]*$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "string",
+                            "text",
+                            "url",
+                            "number",
+                            "integer",
+                            "boolean",
+                            "datetime",
+                            "select",
+                            "image"
+                          ]
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "type",
+                        "label"
+                      ]
+                    }
+                  },
+                  "minItems": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maxItems": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "allowedMimeTypes": {
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "darkVariant": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "slug",
+              "label",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "breaking": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "slug",
+        "expectedFingerprint"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_activate_block_type_version",
+    "title": "Activate Block Type Version",
+    "description": "Make a retained version the active version used by newly created blocks.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "expectedFingerprint": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "slug",
+        "version",
+        "expectedFingerprint"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_create_collection",
+    "title": "Create Collection",
+    "description": "Create a new content collection (content type). This creates a database table and schema definition. The slug must be lowercase alphanumeric with underscores, starting with a letter. Supports: 'drafts' (draft/publish workflow), 'revisions' (version history), 'preview' (live preview), 'scheduling' (timed publish), 'search' (full-text indexing), and 'seo' (SEO metadata).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Unique identifier (lowercase letters, numbers, underscores)"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name (plural, e.g. 'Blog Posts')"
+        },
+        "labelSingular": {
+          "description": "Singular display name (e.g. 'Blog Post')",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of this collection",
+          "type": "string"
+        },
+        "icon": {
+          "description": "Icon name for the admin UI",
+          "type": "string",
+          "maxLength": 64
+        },
+        "supports": {
+          "description": "Features to enable (default: ['drafts', 'revisions'])",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "drafts",
+              "revisions",
+              "preview",
+              "scheduling",
+              "search",
+              "seo"
+            ]
+          }
+        },
+        "routable": {
+          "description": "Require a slug before publishing (default: true)",
+          "type": "boolean"
+        },
+        "editLocking": {
+          "description": "Take an edit lock when an entry is opened (default: true)",
+          "type": "boolean"
+        },
+        "group": {
+          "description": "Admin sidebar folder shared with other collections of the same group",
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "slug",
+        "label"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_delete_collection",
+    "title": "Delete Collection",
+    "description": "Delete a collection and its database table. This is irreversible and deletes all content in the collection. Use with extreme caution.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "Collection slug to delete"
+        },
+        "force": {
+          "description": "Force deletion even if the collection has content (default false)",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_update_collection",
+    "title": "Update Collection",
+    "description": "Update an existing collection without deleting its table, fields, or content. Only provided settings change; omitted settings keep their current values. The collection slug cannot be changed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Collection slug to update; the slug itself cannot be changed"
+        },
+        "label": {
+          "description": "New plural display name",
+          "type": "string",
+          "minLength": 1
+        },
+        "labelSingular": {
+          "description": "New singular display name",
+          "type": "string"
+        },
+        "description": {
+          "description": "New collection description",
+          "type": "string"
+        },
+        "icon": {
+          "description": "New admin UI icon name",
+          "type": "string",
+          "maxLength": 64
+        },
+        "supports": {
+          "description": "Complete feature list to enable; omit to preserve the current list",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "drafts",
+              "revisions",
+              "preview",
+              "scheduling",
+              "search",
+              "seo"
+            ]
+          }
+        },
+        "urlPattern": {
+          "description": "New public URL pattern such as /blog/{slug}, with at most one placeholder per path segment; pass null to clear it",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "routable": {
+          "description": "Whether entries require a slug before they can be published",
+          "type": "boolean"
+        },
+        "hasSeo": {
+          "description": "Whether the collection supports SEO metadata",
+          "type": "boolean"
+        },
+        "group": {
+          "description": "Admin sidebar folder shared with other collections of the same group; pass null to move the collection back inline",
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commentsEnabled": {
+          "description": "Whether comments are enabled for this collection",
+          "type": "boolean"
+        },
+        "commentsModeration": {
+          "description": "Comment moderation policy",
+          "type": "string",
+          "enum": [
+            "all",
+            "first_time",
+            "none"
+          ]
+        },
+        "commentsClosedAfterDays": {
+          "description": "Close comments after this many days; 0 keeps them open",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "commentsAutoApproveUsers": {
+          "description": "Whether comments from authenticated users are automatically approved",
+          "type": "boolean"
+        },
+        "editLocking": {
+          "description": "Whether opening an entry takes an edit lock that refuses other editors' writes",
+          "type": "boolean"
+        },
+        "titleField": {
+          "description": "Field slug to use as the Title column in admin lists; pass null to fall back to the default",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dateField": {
+          "description": "Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "slug"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_create_field",
+    "title": "Add Field to Collection",
+    "description": "Add a new field to a collection's schema. This adds a column to the database table. Field types: string (short text), text (long text), number (decimal), integer, boolean, datetime, select (single choice), multiSelect (multiple), portableText (rich text), image, file, reference (link to another collection), json, slug (URL-safe id), or blocks. For select/multiSelect, provide choices in validation.options array.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug to add the field to"
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Field identifier (lowercase letters, numbers, underscores)"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name for the field"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "text",
+            "number",
+            "integer",
+            "boolean",
+            "datetime",
+            "select",
+            "multiSelect",
+            "portableText",
+            "image",
+            "file",
+            "reference",
+            "json",
+            "slug",
+            "blocks"
+          ],
+          "description": "Data type for this field"
+        },
+        "required": {
+          "description": "Whether the field is required (default false)",
+          "type": "boolean"
+        },
+        "unique": {
+          "description": "Whether values must be unique (default false)",
+          "type": "boolean"
+        },
+        "defaultValue": {
+          "description": "Default value for new items"
+        },
+        "validation": {
+          "description": "Validation constraints",
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "minLength": {
+              "type": "number"
+            },
+            "maxLength": {
+              "type": "number"
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "options": {
+              "description": "Allowed values for select/multiSelect",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowedTypes": {
+              "description": "Ordered block type slugs allowed by a blocks field",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "minItems": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "options": {
+          "description": "Widget configuration",
+          "type": "object",
+          "properties": {
+            "collection": {
+              "description": "Target collection slug for reference fields",
+              "type": "string"
+            },
+            "rows": {
+              "description": "Number of rows for textarea",
+              "type": "number"
+            }
+          },
+          "additionalProperties": {}
+        },
+        "searchable": {
+          "description": "Include in full-text search index (default false)",
+          "type": "boolean"
+        },
+        "indexed": {
+          "description": "Create a physical index for structured sorting",
+          "type": "boolean"
+        },
+        "translatable": {
+          "description": "Whether this field is translatable (default true). Non-translatable fields are synced across all locales in a translation group.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "slug",
+        "label",
+        "type"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_delete_field",
+    "title": "Remove Field from Collection",
+    "description": "Remove a field from a collection. This drops the column from the database table and deletes all data in that field. Irreversible.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "fieldSlug": {
+          "type": "string",
+          "description": "Field slug to remove"
+        }
+      },
+      "required": [
+        "collection",
+        "fieldSlug"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "schema_update_field",
+    "title": "Update Field",
+    "description": "Update an existing field without deleting its column or stored values. Only provided settings change; omitted settings keep their current values. Changes that require a content or column migration are rejected with migration guidance.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Collection slug containing the field"
+        },
+        "fieldSlug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Field slug to update; the slug itself cannot be changed"
+        },
+        "label": {
+          "description": "New display name",
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "description": "New field type; only string, text, and slug aliases can be changed in place",
+          "type": "string",
+          "enum": [
+            "string",
+            "text",
+            "url",
+            "number",
+            "integer",
+            "boolean",
+            "datetime",
+            "select",
+            "multiSelect",
+            "portableText",
+            "image",
+            "file",
+            "reference",
+            "json",
+            "slug",
+            "repeater",
+            "blocks"
+          ]
+        },
+        "required": {
+          "description": "Whether the field is required; changing this requires a manual content migration",
+          "type": "boolean"
+        },
+        "unique": {
+          "description": "Whether field values must be unique; changing this requires a manual content migration",
+          "type": "boolean"
+        },
+        "defaultValue": {
+          "description": "Default value for new content"
+        },
+        "validation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean"
+                },
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "minLength": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "maxLength": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "pattern": {
+                  "type": "string"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "subFields": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 63,
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "string",
+                          "text",
+                          "url",
+                          "number",
+                          "integer",
+                          "boolean",
+                          "datetime",
+                          "select",
+                          "image"
+                        ]
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "type",
+                      "label"
+                    ]
+                  }
+                },
+                "minItems": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "maxItems": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "allowedMimeTypes": {
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9!#$&^_+\\-.]*\\/[a-z0-9!#$&^_+\\-.]*$"
+                  }
+                },
+                "targetCollection": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "multiple": {
+                  "type": "boolean"
+                },
+                "relation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 63,
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "relationSide": {
+                  "type": "string",
+                  "enum": [
+                    "parent",
+                    "child"
+                  ]
+                },
+                "allowedTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 63,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
+                },
+                "retiredTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 63,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Validation constraints; pass null to clear existing constraints"
+        },
+        "widget": {
+          "description": "Admin editor widget name",
+          "type": "string"
+        },
+        "options": {
+          "description": "Widget configuration",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "sortOrder": {
+          "description": "Field order in the content editor",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "searchable": {
+          "description": "Whether full-text search indexes the field",
+          "type": "boolean"
+        },
+        "translatable": {
+          "description": "Whether values vary by locale; changing to false requires a manual content migration",
+          "type": "boolean"
+        },
+        "indexed": {
+          "description": "Create or remove a physical index for structured sorting",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collection",
+        "fieldSlug"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_list",
+    "title": "List Media",
+    "description": "List uploaded media files (images, documents, etc.) with optional MIME type filtering and pagination. Returns file metadata including filename, URL, dimensions, and alt text.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "mimeType": {
+          "description": "Filter by MIME type prefix (e.g. 'image/', 'application/pdf')",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Max items (default 50)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "description": "Pagination cursor",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_create",
+    "title": "Confirm Signed Media Upload",
+    "description": "Confirm a file after uploading it with a signed URL obtained from POST /_emdash/api/media/upload-url. `storageKey` must be the key returned for the same user. Confirmation checks that the stored file exists and matches the size fixed when the URL was issued, then makes it available through media_list / media_get. To upload through MCP, use media_upload instead.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "storageKey": {
+          "type": "string",
+          "description": "Storage key returned by the signed upload URL request"
+        }
+      },
+      "required": [
+        "storageKey"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_upload",
+    "title": "Upload Media",
+    "description": "Upload a media file from base64-encoded data and register it in the media library. Returns the media item with id, storageKey, and url — ready to reference from content fields (e.g. featured_image) via content_create / content_update. Uploads are deduplicated by content hash: re-uploading identical bytes returns the existing item with deduplicated: true. Subject to the global upload MIME allowlist and the configured maximum upload size.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Filename including extension (e.g. 'cover.png')"
+        },
+        "base64": {
+          "type": "string",
+          "description": "Base64-encoded file contents."
+        },
+        "contentType": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9!#$&^_+\\-.]*\\/[a-z0-9!#$&^_+\\-.]+(\\s*;[^\\r\\n]*)?$",
+          "description": "MIME type (e.g. 'image/png')."
+        },
+        "alt": {
+          "description": "Alt text for accessibility",
+          "type": "string"
+        },
+        "caption": {
+          "description": "Caption stored on the media record, such as the credit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filename",
+        "base64",
+        "contentType"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_get",
+    "title": "Get Media Item",
+    "description": "Get details of a single media file by its ID. Returns metadata including filename, MIME type, size, dimensions, alt text, and URL.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Media item ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_update",
+    "title": "Update Media Metadata",
+    "description": "Update the metadata of an uploaded media file. You can change the alt text, caption, and dimensions. The file itself cannot be changed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Media item ID"
+        },
+        "alt": {
+          "description": "Alt text for accessibility",
+          "type": "string"
+        },
+        "caption": {
+          "description": "Caption text",
+          "type": "string"
+        },
+        "width": {
+          "description": "Image width in pixels",
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "description": "Image height in pixels",
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_delete",
+    "title": "Delete Media",
+    "description": "Permanently delete an uploaded media file. Removes the database record and the file from storage. Content referencing this media will have broken references. Cannot be undone.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Media item ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "media_usage_repair",
+    "title": "Repair Media Usage Index",
+    "description": "Repair content media usage indexes for one collection or every collection. Returns complete, partial, failed, or stale status; inspect the structured result.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "collection",
+            "all"
+          ],
+          "description": "Repair one collection or all collections"
+        },
+        "collection": {
+          "description": "Collection slug; required only when scope is collection",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        }
+      },
+      "required": [
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "search",
+    "title": "Search Content",
+    "description": "Full-text search across content collections. Searches indexed fields for matching content. Collections must have 'search' in their supports list and fields must be marked as searchable. Returns collection, item ID, title, excerpt, and relevance score.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query text"
+        },
+        "collections": {
+          "description": "Limit search to specific collection slugs (all if omitted)",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "locale": {
+          "description": "Filter results by locale (omit to search all locales)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Max results (default 20)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "cursor": {
+          "description": "Pagination cursor from a previous response",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_list",
+    "title": "List Taxonomies",
+    "description": "List all taxonomy definitions (e.g. categories, tags). Taxonomies are classification systems applied to content. Each has a name, label, and can be hierarchical (categories) or flat (tags). Optionally filter by locale.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "locale": {
+          "description": "Filter by locale (omit for all)",
+          "type": "string"
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_get",
+    "title": "Get Taxonomy Definition",
+    "description": "Get a single taxonomy definition by name. Taxonomy definitions describe a classification system (e.g. categories or tags), which collections it applies to, and whether it is hierarchical. Pass `locale` to resolve a specific translation; otherwise the lowest matching locale is returned.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Taxonomy name (e.g. 'categories', 'tags')"
+        },
+        "locale": {
+          "description": "Locale to resolve the definition for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_create",
+    "title": "Create Taxonomy Definition",
+    "description": "Create a taxonomy definition in one locale. `label` and `labelSingular` belong to that locale; `hierarchical` and `collections` belong to the taxonomy and are the same in every locale. `collections` names which content types the taxonomy applies to. A definition for a name that already exists in another locale joins that taxonomy and takes its `hierarchical` and `collections`; passing different values is an error (change them with taxonomy_update).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Taxonomy name (lowercase letters, numbers, underscores)"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Display name"
+        },
+        "labelSingular": {
+          "description": "Singular form of the display name",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "hierarchical": {
+          "description": "Whether the taxonomy supports parent/child terms, in every locale (defaults to false; must match when the taxonomy exists in another locale)",
+          "type": "boolean"
+        },
+        "collections": {
+          "description": "Collection slugs this taxonomy applies to, in every locale (defaults to []; must match when the taxonomy exists in another locale)",
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        },
+        "locale": {
+          "description": "Locale for this definition (e.g. 'fr-fr')",
+          "type": "string"
+        },
+        "translationOf": {
+          "description": "Existing taxonomy definition id to create this locale variant from",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "label"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_update",
+    "title": "Update Taxonomy Definition",
+    "description": "Update an existing taxonomy definition. The taxonomy `name` cannot be changed. Pass `locale` to update a specific translation's `label` and `labelSingular`; otherwise the lowest matching locale is updated. `hierarchical` and `collections` change for every locale. Any field may be omitted to leave it unchanged.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Taxonomy name to update"
+        },
+        "label": {
+          "description": "New display name",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "labelSingular": {
+          "description": "New singular display name; pass null to clear",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hierarchical": {
+          "description": "Whether the taxonomy supports parent/child terms, in every locale",
+          "type": "boolean"
+        },
+        "collections": {
+          "description": "Collection slugs this taxonomy applies to, in every locale",
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        },
+        "locale": {
+          "description": "Locale of the definition to update",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_delete",
+    "title": "Delete Taxonomy Definition",
+    "description": "Delete a taxonomy definition and all of its terms in every locale, along with any content assignments those terms hold. This cannot be undone.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Taxonomy name to delete"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_list_terms",
+    "title": "List Taxonomy Terms",
+    "description": "List terms in a taxonomy with pagination. Terms are individual entries (e.g. specific categories or tags). Hierarchical taxonomies can have parent-child relationships.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "description": "Taxonomy name (e.g. 'categories', 'tags')"
+        },
+        "limit": {
+          "description": "Max items (default 50)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "description": "Pagination cursor",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "locale": {
+          "description": "Filter by locale (omit for all)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taxonomy"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_create_term",
+    "title": "Create Taxonomy Term",
+    "description": "Create a new term in a taxonomy. For hierarchical taxonomies like categories, you can specify a parentId to create a child term. The parent must exist and belong to the same taxonomy. The parent's ancestor chain must not exceed 100 levels — attempts to attach a new term beneath a chain of 100+ existing ancestors are rejected.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "description": "Taxonomy name (e.g. 'categories', 'tags')"
+        },
+        "slug": {
+          "description": "URL identifier for the term; omit to derive it from the label",
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name"
+        },
+        "parentId": {
+          "description": "Parent term ID for hierarchical taxonomies",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the term",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Locale for the new term (e.g. 'es')",
+          "type": "string"
+        },
+        "translationOf": {
+          "description": "Term id to join as a translation (same translation_group). The new term takes that term's parent and position; a different parentId moves the term in every locale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "label"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_update_term",
+    "title": "Update Taxonomy Term",
+    "description": "Update an existing term in a taxonomy. Any field can be omitted to leave it unchanged. Renaming a term's slug must not collide with another term in the same taxonomy. Set parentId to null to detach from a parent. The new parent must exist, belong to the same taxonomy, and not introduce a cycle (a term cannot be its own ancestor). The new parent's ancestor chain must not exceed 100 levels — reparenting under a chain of 100+ ancestors is rejected. Translations of a term can share a slug: pass `locale` to update a specific translation; otherwise the lowest matching locale is updated.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "description": "Taxonomy name (e.g. 'categories', 'tags')"
+        },
+        "termSlug": {
+          "type": "string",
+          "description": "Current slug of the term to update"
+        },
+        "slug": {
+          "description": "New slug (must be unique in the taxonomy)",
+          "type": "string"
+        },
+        "label": {
+          "description": "New display name",
+          "type": "string"
+        },
+        "parentId": {
+          "description": "New parent term ID; null to detach",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "New description",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Locale of the term to update (e.g. 'fr')",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "termSlug"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_delete_term",
+    "title": "Delete Taxonomy Term",
+    "description": "Permanently delete a term from a taxonomy. Any content tagged with this term loses the association. Cannot delete a term that has children — delete children first. Translations of a term can share a slug: pass `locale` to delete a specific translation; otherwise the lowest matching locale is deleted.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "description": "Taxonomy name"
+        },
+        "termSlug": {
+          "type": "string",
+          "description": "Slug of the term to delete"
+        },
+        "locale": {
+          "description": "Locale of the term to delete (e.g. 'fr')",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "termSlug"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "taxonomy_term_translations",
+    "title": "List Term Translations",
+    "description": "Return every locale variant of a taxonomy term, identified via its shared translation_group.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Term id (or translation_group)"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_list",
+    "title": "List Menus",
+    "description": "List navigation menus. Menus are per-locale: filter by `locale` to get just one locale's worth, or omit to list every row (one per locale per menu name).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "locale": {
+          "description": "Filter by locale (omit for all)",
+          "type": "string"
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_get",
+    "title": "Get Menu with Items",
+    "description": "Get a menu by name, including its items. When multiple locales exist, pass `locale` to pick the right one.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Menu name (e.g. 'main', 'footer')"
+        },
+        "locale": {
+          "description": "Locale to resolve the menu for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_translations",
+    "title": "List Menu Translations",
+    "description": "Return every locale variant of a menu, identified via the shared translation_group.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Menu id (or translation_group)"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_create",
+    "title": "Create Menu",
+    "description": "Create a new navigation menu. The `name` is the stable identifier used by site templates (e.g. 'main', 'footer'); `label` is the human-readable name shown in the admin. Menus are per-locale, so pass `locale` when the same menu name exists in multiple translations. Add items afterwards with menu_set_items. If `translationOf` is set, `locale` must also be set.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable identifier (lowercase letters, numbers, underscores)"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name for the admin"
+        },
+        "locale": {
+          "description": "Locale for this menu (e.g. 'fr-fr')",
+          "type": "string"
+        },
+        "translationOf": {
+          "description": "Existing menu id to create this locale variant from",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "label"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_update",
+    "title": "Update Menu",
+    "description": "Update a menu's label. The `name` (stable identifier) cannot be changed. On multi-locale installs, pass `locale` so the correct translation is updated.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Menu name to update"
+        },
+        "label": {
+          "type": "string",
+          "description": "New display label"
+        },
+        "locale": {
+          "description": "Locale of the menu to update",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "label"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_delete",
+    "title": "Delete Menu",
+    "description": "Delete a menu. Items are also removed. Cannot be undone. On multi-locale installs, pass `locale` so only the intended translation is removed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Menu name to delete"
+        },
+        "locale": {
+          "description": "Locale of the menu to delete",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "menu_set_items",
+    "title": "Set Menu Items",
+    "description": "Replace the entire item list of a menu in one call. This is atomic: the existing items are deleted and the new list is inserted in the order provided. Use this rather than per-item add/remove tools so the resulting order and parent links are unambiguous. On multi-locale installs, pass `locale` so only the intended translation is rewritten.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Menu name to update"
+        },
+        "locale": {
+          "description": "Locale of the menu to rewrite",
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Item display text"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "custom",
+                  "page",
+                  "post",
+                  "taxonomy",
+                  "collection"
+                ],
+                "description": "Item kind"
+              },
+              "customUrl": {
+                "description": "URL for type='custom' items (ignored otherwise)",
+                "type": "string"
+              },
+              "referenceCollection": {
+                "description": "Target collection slug for content references",
+                "type": "string"
+              },
+              "referenceId": {
+                "description": "Target content/term ID for references",
+                "type": "string"
+              },
+              "titleAttr": {
+                "description": "HTML title attribute",
+                "type": "string"
+              },
+              "target": {
+                "description": "HTML target attribute, e.g. '_blank'",
+                "type": "string"
+              },
+              "cssClasses": {
+                "description": "Space-separated CSS classes",
+                "type": "string"
+              },
+              "parentIndex": {
+                "description": "Array index of the parent item (must be earlier in the list). Omit for top-level items.",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "label",
+              "type"
+            ]
+          },
+          "description": "Ordered list of menu items"
+        }
+      },
+      "required": [
+        "name",
+        "items"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "revision_list",
+    "title": "List Revisions",
+    "description": "List revision history for a content item. Revisions are snapshots created on publish or update. Returns newest-first. Requires the collection to support 'revisions'.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection slug"
+        },
+        "id": {
+          "type": "string",
+          "description": "Content item ID or slug"
+        },
+        "limit": {
+          "description": "Max revisions (default 20)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      },
+      "required": [
+        "collection",
+        "id"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "revision_restore",
+    "title": "Restore Revision",
+    "description": "Restore a content item to a previous revision. Replaces the current draft with the specified revision's data. Not automatically published — use content_publish afterward if needed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "revisionId": {
+          "type": "string",
+          "description": "Revision ID to restore"
+        },
+        "overrideLock": {
+          "description": "Write even though someone else has this item open in the admin. Without it, the call fails with ENTRY_LOCKED and the error names who is editing; calling content_get again does not clear it. Tell the user who holds the item, and set this only if they ask you to write anyway.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "revisionId"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "settings_get",
+    "title": "Get Site Settings",
+    "description": "Get all site-wide settings (title, tagline, logo, favicon, URL, date/time formatting, social links, SEO defaults). Media references (logo, favicon, defaultOgImage) include resolved URLs. Unset values are omitted from the response.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "settings_update",
+    "title": "Update Site Settings",
+    "description": "Update one or more site-wide settings. This is a partial update: only the fields provided are changed; omitted fields are left as-is, including fields inside `seo` and `social`. Send an empty string to clear a text field. Returns the full settings object after the update. To set a media reference (logo, favicon, seo.defaultOgImage), pass an object with `mediaId` (and optional `alt`) — the media item must already exist (use media_create first), or pass null to remove it.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "Site title",
+          "type": "string"
+        },
+        "tagline": {
+          "description": "Site tagline / short description",
+          "type": "string"
+        },
+        "logo": {
+          "description": "Logo media reference ({ mediaId, alt? }); null removes it",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mediaId": {
+                  "type": "string",
+                  "description": "Media item ID (use media_create or media_list)"
+                },
+                "alt": {
+                  "description": "Alt text for the media reference",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mediaId"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "favicon": {
+          "description": "Favicon media reference ({ mediaId, alt? }); null removes it",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mediaId": {
+                  "type": "string",
+                  "description": "Media item ID (use media_create or media_list)"
+                },
+                "alt": {
+                  "description": "Alt text for the media reference",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mediaId"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "description": "Canonical site URL (http or https). Empty string clears it.",
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "string",
+              "const": ""
+            }
+          ]
+        },
+        "postsPerPage": {
+          "description": "Default page size for content listings",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "dateFormat": {
+          "description": "Date format token string",
+          "type": "string"
+        },
+        "timezone": {
+          "description": "IANA timezone identifier",
+          "type": "string"
+        },
+        "social": {
+          "description": "Social handles / URLs",
+          "type": "object",
+          "properties": {
+            "twitter": {
+              "type": "string"
+            },
+            "github": {
+              "type": "string"
+            },
+            "facebook": {
+              "type": "string"
+            },
+            "instagram": {
+              "type": "string"
+            },
+            "linkedin": {
+              "type": "string"
+            },
+            "youtube": {
+              "type": "string"
+            }
+          }
+        },
+        "seo": {
+          "description": "Site-wide SEO defaults",
+          "type": "object",
+          "properties": {
+            "titleSeparator": {
+              "description": "Separator between page title and site title (e.g. ' | ')",
+              "type": "string",
+              "maxLength": 10
+            },
+            "defaultOgImage": {
+              "description": "Default Open Graph image when content has none; null removes it",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "mediaId": {
+                      "type": "string",
+                      "description": "Media item ID (use media_create or media_list)"
+                    },
+                    "alt": {
+                      "description": "Alt text for the media reference",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "mediaId"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "robotsTxt": {
+              "description": "Custom robots.txt body. Leave unset for the EmDash default.",
+              "type": "string",
+              "maxLength": 5000
+            },
+            "disallowAiTraining": {
+              "description": "Add robots.txt rules asking AI crawlers not to use the site for training",
+              "type": "boolean"
+            },
+            "googleVerification": {
+              "description": "Google Search Console verification token",
+              "type": "string",
+              "maxLength": 100
+            },
+            "bingVerification": {
+              "description": "Bing Webmaster Tools verification token",
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        }
+      }
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_transfer_capabilities",
+    "title": "Get Site Transfer Capabilities",
+    "description": "Site package format versions, features, and limits this site supports, and whether it can receive an import (its portable content is empty) with the reasons it cannot. Requires any transfer scope (transfer:export, transfer:analyze, or transfer:execute).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_export_start",
+    "title": "Start Site Export",
+    "description": "Start exporting the whole site as a portable site package (schema, content, media, settings; never users, credentials, or secrets). Returns the operation id and status only; drive it with site_export_status. The package itself is downloaded outside MCP, from the admin or the CLI. Requires the transfer:export scope. If the token lacks the scope, the first call fails with TRANSFER_APPROVAL_REQUIRED and details.approvalId; an admin must approve that request in the EmDash admin (Settings → Transfer). Then repeat the call with the same arguments plus approvalId. Approvals are single-use, bound to this user, this token, and these exact arguments, and expire 15 minutes after they are requested or approved.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "comments": {
+          "description": "Include comments and reactions (default true)",
+          "type": "boolean"
+        },
+        "approvalId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Approval id from an earlier TRANSFER_APPROVAL_REQUIRED error, once approved"
+        }
+      }
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_export_status",
+    "title": "Get Site Export Status",
+    "description": "Report an export's state, stage, and progress, and once it is complete its package digest and record and media totals. By default each call also runs one bounded export step, so call it repeatedly until nextRequestInMs is null; pass advance: false to only read. Requires the transfer:export scope, or the approval that started this export (same token).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z_-]{1,64}$",
+          "description": "Transfer operation id"
+        },
+        "advance": {
+          "description": "Run one bounded export step before reporting (default true)",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "operationId"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_import_analyze",
+    "title": "Analyze Site Import",
+    "description": "Validate an uploaded site package against this site and produce an import plan. The package must already be uploaded over HTTP, from the admin or the CLI; MCP never carries package bytes. Each call runs one bounded analysis step: repeat until nextRequestInMs is null, then read plan (counts, principals with suggested user mappings, warnings, blockers, packageDigest, planDigest). Pass decisions to map principals or keep this site's title and tagline; that produces a new planDigest. Principal emails are never returned. Writes no site content. Requires the transfer:analyze scope.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z_-]{1,64}$",
+          "description": "Transfer operation id"
+        },
+        "decisions": {
+          "description": "principalMappings (principal id to target user id, or null to drop the reference) and siteTitle / siteTagline ('package' or 'target'). Omitted values keep the plan defaults.",
+          "type": "object",
+          "properties": {
+            "principalMappings": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^[\\x21-\\x7e]+$"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024,
+                    "pattern": "^[\\x21-\\x7e]+$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "siteTitle": {
+              "type": "string",
+              "enum": [
+                "package",
+                "target"
+              ]
+            },
+            "siteTagline": {
+              "type": "string",
+              "enum": [
+                "package",
+                "target"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operationId"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_import_start",
+    "title": "Start Site Import",
+    "description": "Start importing an analyzed package into this site. packageDigest and planDigest must be the values from the latest site_import_analyze plan, which must have no blockers. Returns the operation id and status; drive it with site_import_resume. The site refuses ordinary content writes until the import completes or an admin abandons it. Requires the transfer:execute scope. If the token lacks the scope, the first call fails with TRANSFER_APPROVAL_REQUIRED and details.approvalId; an admin must approve that request in the EmDash admin (Settings → Transfer). Then repeat the call with the same arguments plus approvalId. Approvals are single-use, bound to this user, this token, and these exact arguments, and expire 15 minutes after they are requested or approved.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z_-]{1,64}$",
+          "description": "Transfer operation id"
+        },
+        "packageDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Package digest from the plan"
+        },
+        "planDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Plan digest from the latest analysis"
+        },
+        "approvalId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Approval id from an earlier TRANSFER_APPROVAL_REQUIRED error, once approved"
+        }
+      },
+      "required": [
+        "operationId",
+        "packageDigest",
+        "planDigest"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_import_status",
+    "title": "Get Site Import Status",
+    "description": "Report an import's state, stage, progress, digests, and uploaded file counts. Does not advance the import. Requires any transfer scope, or the approval that started this import (same token).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z_-]{1,64}$",
+          "description": "Transfer operation id"
+        }
+      },
+      "required": [
+        "operationId"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_import_resume",
+    "title": "Resume Site Import",
+    "description": "Run one bounded step of a started import and report its status. Call repeatedly until nextRequestInMs is null; safe to repeat after a disconnect. Requires the transfer:execute scope, or the approval that started this import (same token).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z_-]{1,64}$",
+          "description": "Transfer operation id"
+        }
+      },
+      "required": [
+        "operationId"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "site_import_receipt",
+    "title": "Get Site Import Receipt",
+    "description": "Return the verified receipt of a completed import: package and plan digests, origin and target site ids, logical digest, record counts, warnings, and the receipt's own digest. Requires any transfer scope, or the approval that started this import (same token).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[0-9A-Za-z_-]{1,64}$",
+          "description": "Transfer operation id"
+        }
+      },
+      "required": [
+        "operationId"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]

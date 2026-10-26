@@ -21,7 +21,7 @@ docker compose down -v           # wipe the database and uploads
 | 1 | Run on Node + Postgres in Docker | ✅ Works, with 3 serious caveats (F1–F3) |
 | 2a | WordPress import: theme unit test data (`fixtures/themeunittestdata.wordpress.xml`) | ✅ Done. Content imports cleanly, but migration fidelity has major gaps (F11–F13). Reports: `results/` |
 | 2b | WordPress import: a real client WXR export | ⏳ Needs a file |
-| 3 | Drive the site through MCP with Claude (realistic editing tasks) | ⏳ Needs admin setup + token |
+| 3 | Drive the site through MCP with Claude (realistic editing tasks) | ✅ Done. A strong base, with safety gaps for agency use (F14–F15). Client: `scripts/mcp.mjs`; task: `scripts/mcp-task-fix-gallery.mjs` |
 | 4 | Write a trivial plugin + admin page | 🟡 Started: an auth provider (`emdash-site/packages/auth-password`), not yet a plugin |
 
 ## Findings
@@ -84,5 +84,29 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   | **`<!--more-->` / `<!--nextpage-->` dropped** | 4 and 5 in the source, 0 kept | Excerpts and pagination change |
   | **Sticky flag lost** | There's no equivalent field | Minor |
   | **Server-rendered blocks are empty** | e.g. `widgets-block-category` becomes an empty `htmlBlock` (as documented) | Minor |
+
+- **F14 🟢 The MCP server is genuinely agent-grade.**
+  - **Breadth:** 72 tools (as documented) with `readOnly`/`destructive` annotations, covering content, schema, media, taxonomies, menus, revisions, settings and site transfer.
+  - **Safety:**
+    - Writes need the `_rev` from the last read, and a stale write fails with `[CONFLICT] … modified since last read`.
+    - An edit to a published item is **staged as a draft** until `content_publish`, and `content_compare` shows the diff.
+    - Errors tell the agent how to fix them, e.g. "`_rev is required: call content_get … and pass back the _rev`".
+    - Rich text accepts Markdown, which is cheap for an LLM.
+  - **Scopes:** a `content:read`+`content:write` token gets `INSUFFICIENT_SCOPE` for `schema_delete_collection` and `settings_update`. Revoking a token takes effect immediately.
+  - **Real task done end to end over MCP:** "replace the raw `[gallery]` shortcodes with real galleries from the imported media". The result is 10 galleries and 230 images served locally (optimised WebP), staged, compared, then published.
+- **F15 🔴 Gaps for agency/client use, where our layer adds value.**
+
+  | Gap | Evidence |
+  |---|---|
+  | **Destructive actions need no human approval** | An admin token dropped a collection *with content* by passing `force: true` itself. A **content-only** token **permanently deleted** a post in 2 calls (`content_delete` → `content_permanent_delete`, the latter with no `_rev`). Only `site_import_start` requires approval |
+  | **The first edit to migrated content can't be undone** | The importer writes no revisions, so after an agent edit `revision_list` shows only the new revision and the original is unrecoverable inside EmDash |
+  | **Edits are whole-field** | No block-level patch: changing one shortcode means re-sending the whole body (~50 KB here, which overflowed the Windows command line). This costs tokens and risks agents silently dropping blocks. Stable block-ID patch ops (the astro-spatial idea) would fix it |
+  | **Built-in block formats aren't discoverable** | `schema_list_block_types` returns `[]`. `gallery`, `embed`, `image` etc. aren't described anywhere an agent can query, so the agent copied the format from an existing post and the renderer source |
+  | **`revision_list` silently returns empty for a slug** | It needs the ULID, while other tools accept slugs. An agent would wrongly conclude there's no history |
+  | **Import drops media metadata** | Alt text, captions, titles and the attachment→post relationship are all null, so `[gallery]` can only be resolved with the original WXR (which our tooling would keep) |
+  | **Imported image references aren't linked to the media library** | Gutenberg galleries keep WP attachment IDs (`_ref: "755"`) and old-host URLs. Featured images are stored as `provider: "external"` with an empty id |
+  | **`tools/list` ignores token scope** | A content-only token still sees all 72 tools, wasting agent context and inviting failed calls |
+  | **No MCP tools for redirects, comments, users or plugins** | Redirect management matters most after a migration |
+  | Not tested yet | Prompt injection through content an agent reads (e.g. instructions hidden in an imported post) |
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.
