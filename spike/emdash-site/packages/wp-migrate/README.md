@@ -8,7 +8,10 @@ node src/cli.ts prepare export.xml --out ./out    # writes out/export.prepared.x
 # Import out/export.prepared.xml with EmDash, including media (e.g. spike/scripts/wp-import.mjs --out ./out/import)
 EMDASH_TOKEN=… node src/cli.ts fix-shortcodes --prepared ./out --media ./out/import/4-media.json --base https://site
 EMDASH_TOKEN=… node src/cli.ts fix-media --prepared ./out --media ./out/import/4-media.json --base https://site --fetch-missing
+EMDASH_TOKEN=… node src/cli.ts redirects --prepared ./out --base https://site
 ```
+
+Run the post-import commands in this order. Each writes a JSON report into `./out`, and each is safe to re-run.
 
 The legacy hosts come from the export (`preflight.json`): the blog URL, the channel link and every attachment host. `wp:base_site_url` is excluded because on multisite and WordPress.com it's the network root.
 
@@ -22,7 +25,8 @@ Import `*.prepared.xml`, **never the original export**. `fix-shortcodes` needs a
 | **Shortcodes** (`[caption]`, `[gallery]`, `[audio]`, `[video]`, `[embed]`). See below | Before and after import | ✅ Done. E2E: 25/25 converted in 8 entries, 0 left in the database or on pages, 8/8 still published with their original dates, media served locally |
 | **Media URLs.** Every legacy media URL or reference in any field of any collection is pointed at the media library: image/gallery `asset` references (including leftover WP attachment-ID `_ref`s), size variants (`-150x150`), `?w=` resized URLs, cover backgrounds, file and embed URLs, embed HTML, image links and text links. `--fetch-missing` also downloads linked files the export didn't attach (on legacy hosts only, ≤ 50 MB) and uploads them. It then runs `media_usage_repair` | After import | ✅ Done. E2E: 169 → 0 legacy references (160 rewritten in 15 entries, 1 linked PDF fetched), 0 on public pages, all still published |
 | Media metadata (alt, captions, titles from attachments) | After import | Planned |
-| Redirects and page hierarchy | After import | Planned |
+| **Non-ASCII slugs.** Percent-encoded post, category and tag slugs (`%ce%b5…`) are decoded. EmDash's importer stores them verbatim, which makes those entries unreachable at any URL (spike F21) | Before import | ✅ Done. E2E: Greek pages reachable |
+| **Redirects and page hierarchy.** A 301 from each old permalink (date paths, nested `/parent/child/` page paths) to the new URL, using **EmDash core redirects** (group `wp-migrate`, idempotent). Internal links to old pages are rewritten to new URLs. Only published entries are redirected, so drafted protected content isn't reachable through its old URL | After import | ✅ Done. E2E: 76/76 old permalinks → 301 → 200, protected post 404 on old and new URLs, a re-run creates 0 |
 | Menus | After import | Planned |
 | Baseline revision per entry | After import | Planned |
 | Final `migration-guard` scan = 0 | After import | Planned |

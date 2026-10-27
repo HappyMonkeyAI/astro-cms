@@ -7,6 +7,7 @@
  */
 
 import { buildBlocks } from "./blocks.ts";
+import { updateEntry } from "./entries.ts";
 import type { McpClient } from "./mcp-client.ts";
 import { createMediaResolver, type ImportedMedia } from "./media.ts";
 import { replaceMarkers, type PtBlock } from "./portable-text.ts";
@@ -73,12 +74,7 @@ export async function fixShortcodes(options: FixShortcodesOptions): Promise<Entr
 				log(`${collection}/${slug}: ${outcome.replaced} to replace${dryRun ? " (dry run)" : ""}`);
 				continue;
 			}
-			await mcp.call("content_update", { collection, id: item.id, _rev, data });
-			if (item.status === "published") {
-				const fresh = await mcp.call("content_get", { collection, id: item.id });
-				await mcp.call("content_publish", { collection, id: item.id, _rev: fresh._rev });
-				outcome.republished = true;
-			}
+			outcome.republished = await updateEntry(mcp, collection, item, _rev, data);
 			log(`${collection}/${slug}: replaced ${outcome.replaced}${outcome.republished ? ", republished" : ""}`);
 		} catch (error) {
 			outcome.error = error instanceof Error ? error.message : String(error);

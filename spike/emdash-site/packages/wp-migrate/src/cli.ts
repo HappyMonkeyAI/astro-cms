@@ -12,6 +12,9 @@
  *   wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]
  *                                                      point every legacy media URL/reference at the media library;
  *                                                      --fetch-missing also downloads linked files the export didn't attach
+ *   wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]
+ *                                                      301s from old permalinks to new URLs (EmDash core redirects,
+ *                                                      group "wp-migrate"); rewrite internal links to old pages
  *
  * Import the prepared file, never the original.
  */
@@ -20,6 +23,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
 import { fixMedia } from "./fix-media.ts";
+import { fixRedirects } from "./fix-redirects.ts";
+import { readPermalinks } from "./permalinks.ts";
+import { connectRest } from "./rest-client.ts";
+import { decodeSlugs } from "./slugs.ts";
 import { fixShortcodes } from "./fix-shortcodes.ts";
 import { findLegacyHosts } from "./legacy-hosts.ts";
 import { connectMcp } from "./mcp-client.ts";
@@ -40,6 +47,7 @@ function usage(): never {
 			"       wp-migrate prepare <export.xml> --out <dir>",
 			"       wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
 			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
+			"       wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]",
 		].join("\n"),
 	);
 	process.exit(2);
@@ -49,7 +57,8 @@ if (command === "preflight" || command === "prepare") {
 	if (!positional) usage();
 	const source = await readFile(positional, "utf8");
 	const protectedResult = protectContent(source);
-	const shortcodeResult = extractShortcodes(protectedResult.xml);
+	const slugResult = decodeSlugs(protectedResult.xml);
+	const shortcodeResult = extractShortcodes(slugResult.xml);
 	const converted = shortcodeResult.entries.filter((e) => e.data);
 	const problems = shortcodeResult.entries.filter((e) => e.problem);
 
@@ -62,6 +71,7 @@ if (command === "preflight" || command === "prepare") {
 		converted.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.data!.kind]: (acc[e.data!.kind] ?? 0) + 1 }), {}),
 	);
 	console.log(`  ${converted.length} shortcode(s) will be converted: ${byKind.map(([k, n]) => `${n} ${k}`).join(", ") || "none"}`);
+	console.log(`  ${slugResult.decoded.length} percent-encoded slug(s) will be decoded (EmDash can't serve them encoded)`);
 	console.log(`  legacy hosts: ${findLegacyHosts(source).join(", ") || "none found"}`);
 	for (const p of problems) console.log(`    ! left as text in /${p.slug}: ${p.problem} — ${p.raw.slice(0, 80)}`);
 
@@ -77,11 +87,41 @@ if (command === "preflight" || command === "prepare") {
 			generatedAt: new Date().toISOString(),
 			legacyHosts: findLegacyHosts(source),
 			protected: protectedResult.protected,
+			decodedSlugs: slugResult.decoded,
 		};
 		await writeFile(join(outDir, "preflight.json"), `${JSON.stringify(report, null, 2)}\n`);
 		await writeFile(join(outDir, "shortcodes.json"), `${JSON.stringify(shortcodeResult.entries, null, 2)}\n`);
-		console.log(`Wrote ${preparedPath}, preflight.json and shortcodes.json. Import the prepared file, not the original.`);
+		await writeFile(join(outDir, "permalinks.json"), `${JSON.stringify(readPermalinks(source), null, 2)}\n`);
+		console.log(`Wrote ${preparedPath}, preflight.json, shortcodes.json and permalinks.json. Import the prepared file, not the original.`);
 	}
+} else if (command === "redirects") {
+	const prepared = option("--prepared");
+	const base = option("--base");
+	const token = process.env.EMDASH_TOKEN;
+	if (!prepared || !base) usage();
+	if (!token) {
+		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
+		process.exit(2);
+	}
+	const { legacyHosts } = JSON.parse(await readFile(join(prepared, "preflight.json"), "utf8"));
+	const permalinks = JSON.parse(await readFile(join(prepared, "permalinks.json"), "utf8"));
+	const report = await fixRedirects({
+		permalinks,
+		legacyHosts,
+		mcp: await connectMcp(base, token),
+		rest: connectRest(base, token),
+		dryRun: args.includes("--dry-run"),
+		log: (line) => console.log(`  ${line}`),
+	});
+	await writeFile(join(prepared, "redirects.json"), `${JSON.stringify(report, null, 2)}\n`);
+	const reasons = report.skipped.reduce<Record<string, number>>((acc, s) => ({ ...acc, [s.reason]: (acc[s.reason] ?? 0) + 1 }), {});
+	const links = report.links.reduce((n, l) => n + l.rewritten, 0);
+	const unresolved = [...new Set(report.links.flatMap((l) => l.unresolved))];
+	console.log(`Created ${report.created.length} redirect(s), ${report.failed.length} failed; skipped: ${JSON.stringify(reasons)}`);
+	console.log(`Rewrote ${links} internal link(s); ${unresolved.length} legacy URL(s) left unchanged`);
+	for (const f of report.failed.slice(0, 10)) console.log(`  ! ${f.source}: ${f.error}`);
+	for (const url of unresolved.slice(0, 10)) console.log(`  - ${url}`);
+	if (report.failed.length || report.links.some((l) => l.error)) process.exitCode = 1;
 } else if (command === "fix-shortcodes" || command === "fix-media") {
 	const prepared = option("--prepared");
 	const mediaPath = option("--media");

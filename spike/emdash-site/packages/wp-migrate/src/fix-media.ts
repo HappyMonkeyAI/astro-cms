@@ -3,6 +3,7 @@
  * write back with `_rev`, re-publish if published, then rebuild EmDash's media usage index.
  */
 
+import { listCollections, listEntryIds, updateEntry } from "./entries.ts";
 import type { McpClient } from "./mcp-client.ts";
 import { createMediaResolver, type ImportedMedia } from "./media.ts";
 import { legacyUrlPattern } from "./legacy-hosts.ts";
@@ -36,16 +37,13 @@ export interface MediaOutcome {
 	error?: string;
 }
 
-const STATUSES = ["draft", "published", "scheduled"] as const;
-
 export async function fixMedia(
 	options: FixMediaOptions,
 ): Promise<{ entries: MediaOutcome[]; fetched: FetchedFile[]; usageRepair?: unknown }> {
 	const { mcp, dryRun, log = () => {} } = options;
 	const legacyUrl = legacyUrlPattern(options.legacyHosts);
-	const collections: { slug: string }[] = asItems(await mcp.call("schema_list_collections", {}));
 	const ids = new Map<string, string[]>();
-	for (const { slug } of collections) ids.set(slug, await listIds(mcp, slug));
+	for (const { slug } of await listCollections(mcp)) ids.set(slug, await listEntryIds(mcp, slug));
 
 	const media = [...options.media];
 	const fetched: FetchedFile[] = [];
@@ -92,12 +90,7 @@ export async function fixMedia(
 				continue;
 			}
 			try {
-				await mcp.call("content_update", { collection, id: item.id, _rev, data: changed });
-				if (item.status === "published") {
-					const fresh = await mcp.call("content_get", { collection, id: item.id });
-					await mcp.call("content_publish", { collection, id: item.id, _rev: fresh._rev });
-					outcome.republished = true;
-				}
+				outcome.republished = await updateEntry(mcp, collection, item, _rev, changed);
 				log(`${collection}/${outcome.slug}: rewrote ${outcome.rewritten}${outcome.unresolved.length ? `, ${outcome.unresolved.length} unresolved` : ""}${outcome.republished ? ", republished" : ""}`);
 			} catch (error) {
 				outcome.error = error instanceof Error ? error.message : String(error);
@@ -130,19 +123,3 @@ async function fetchAndUpload(mcp: McpClient, url: string): Promise<FetchedFile 
 	}
 }
 
-async function listIds(mcp: McpClient, collection: string): Promise<string[]> {
-	const ids = new Set<string>();
-	for (const status of STATUSES) {
-		let cursor: string | undefined;
-		do {
-			const page = await mcp.call("content_list", { collection, status, limit: 100, ...(cursor ? { cursor } : {}) });
-			for (const item of asItems(page)) ids.add(item.id);
-			cursor = page?.nextCursor ?? undefined;
-		} while (cursor);
-	}
-	return [...ids];
-}
-
-function asItems(page: any): any[] {
-	return Array.isArray(page) ? page : (page?.items ?? page?.collections ?? []);
-}

@@ -183,4 +183,18 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   | **No 2FA** for password accounts | Remaining. Planned as an email one-time code, not an authenticator app |
   | **No self-service password reset** | Partly covered: a magic link signs the user in, but there's no "set a new password" screen yet |
 
+### Migration tooling (milestone 2)
+
+- **F21 🔴 The WXR importer makes entries with non-ASCII slugs unreachable.**
+  - WordPress stores such slugs percent-encoded in the export (`<wp:post_name>%ce%b5%cf%80…-2</wp:post_name>`), and EmDash stores that text verbatim as the slug.
+  - Astro decodes the request path before the slug lookup, so `/pages/επίπεδο-2` in any encoding returns 404. The page exists but can never be reached.
+  - Affects any site with accented or non-Latin slugs (French, German, Greek, …).
+  - EmDash itself handles Unicode slugs fine: renaming the slug to `επίπεδο-3` over MCP made the page return 200.
+  - `wp-migrate prepare` decodes post, category and tag slugs before import. This is a candidate upstream issue (decode `post_name` in the importer).
+- **F22 🟢 EmDash core already has a full redirect system**, so the planned `redirects` plugin is dropped.
+  - Features: `_emdash_redirects` with 301/302/307/308/410/451, pattern rules, hit counts, groups, a 404 log, DB-level loop validation and site-relative-only destinations.
+  - It's managed through `/_emdash/api/redirects`, and an admin-scope PAT works.
+  - There are no MCP tools for it (F15).
+  - `wp-migrate redirects` writes there: 76/76 old permalinks → 301 → 200 on the theme unit test data.
+
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.
