@@ -1,6 +1,6 @@
 # Draft upstream issues for emdash-cms/emdash
 
-Status: **drafts for review, not filed.** Each was checked against existing issues on 2026-10-27; related ones are linked. Reproduced on emdash 1.3.1, Astro 7.4.2, `@astrojs/node` standalone, Node 24, Docker (`node:24-bookworm-slim`), Postgres 17.
+Status: **drafts for review.** Drafts 1–3 are being filed by the user. Drafts 4–6 are new drafts for review and have not yet been checked against existing issues. Drafts 1–3 were checked against existing issues on 2026-10-27; related ones are linked. Reproduced on emdash 1.3.1, Astro 7.4.2, `@astrojs/node` standalone, Node 24, Docker (`node:24-bookworm-slim`), Postgres 17.
 
 ---
 
@@ -115,3 +115,89 @@ Resolve OAuth credentials the same way #2139 resolved the other secrets: read fr
 ### Workaround we use
 
 Patching both call sites to `getOAuthConfig(cfEnv ?? { ...import.meta.env, ...globalThis.process?.env })`. Runtime values then win, and nothing needs to be present at build. Verified with a real Google OAuth client: an invite accepted via Google and a repeat sign-in both worked, with 0 secrets in `dist/`. A proper fix should drop the `import.meta.env` read for secrets entirely, since our spread still inlines anything present at build. Happy to open a PR.
+
+---
+
+## 4. WXR importer keeps percent-encoded slugs, so entries with non-ASCII slugs are unreachable
+
+**Labels:** bug, importer
+
+### Description
+
+WordPress stores non-ASCII slugs percent-encoded in WXR exports. The WordPress theme unit test data has a page with the Greek slug `επίπεδο-2`, exported as:
+
+```xml
+<wp:post_name>%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2</wp:post_name>
+```
+
+The importer stores this text verbatim, so `ec_pages.slug` holds `%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2` literally. Astro decodes the request path before the lookup, so the stored slug never matches. After import, `/pages/%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2` returns 404, and so do the upper-case-encoded form, a double-encoded form and the decoded form `/pages/επίπεδο-2`. The page exists in the database but cannot be reached at any URL.
+
+Pages created in the admin with Unicode slugs work, so the problem is confined to the import path. Category and tag nicenames in the export are encoded the same way. We decode those too, but we have not separately confirmed that the taxonomy URLs fail in the same way.
+
+### Steps to reproduce
+
+1. Import the WordPress theme unit test data (it has a page with the slug `επίπεδο-2`), or edit the `wp:post_name` of any page in a WXR to the encoded form above.
+2. After the import, check `ec_pages.slug`. It holds the encoded text.
+3. Request `/pages/%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2`, the upper-case form `/pages/%CE%B5%CF%80%CE%AF%CF%80%CE%B5%CE%B4%CE%BF-2` and `/pages/επίπεδο-2`. All return 404.
+4. Rename the slug to `επίπεδο-3` through the admin or MCP `content_update`. `/pages/επίπεδο-3` and `/pages/%CE%B5%CF%80%CE%AF%CF%80%CE%B5%CE%B4%CE%BF-3` then both return 200.
+
+### Suggested fix
+
+Decode `wp:post_name` during import, and the term nicenames (`wp:category_nicename`, `wp:tag_slug`, `wp:term_slug`, and `category/@nicename`) too, using `decodeURIComponent`. Fall back to the raw value if the escapes are not valid UTF-8. EmDash already serves Unicode slugs, as admin-created pages show, so decoding on import should be enough and no runtime change should be needed.
+
+### Our workaround
+
+The wp-migrate package has a slugs pass that runs on the export before import. It decodes the slug elements that contain percent escapes and leaves every other value unchanged. Happy to open a PR.
+
+---
+
+## 5. Bug: WXR import finds 0 menus for exports that have no channel-level nav_menu term definitions
+
+**Labels:** bug, importer, menus
+
+### Description
+
+On the WordPress theme unit test data, the WXR analysis step reports `menus=0`. The export contains 5 menus and 70 `nav_menu_item` posts. Each item is assigned to its menu with a post-level category element, `<category domain="nav_menu" nicename="...">`, and the export has no channel-level `<wp:term>` definitions for `nav_menu`. The export looks like a WordPress.com-style export. The importer has a `buildNavMenus()` that groups items by the `nav_menu` custom taxonomy.
+
+**Observed:** the analysis reports zero menus, and after import the only menu on the site is the one from the seed data.
+
+**Root cause: not verified.** Our hypothesis is that menus are built from the `<wp:term>` definitions, so a menu that has items but no definition is never created. We have not traced the code path to confirm this, and we have not tested an export where the definitions are present.
+
+Menu names have a separate problem. EmDash menu names must match `/^[a-z][a-z0-9_]*$/`, but WordPress menu slugs commonly contain hyphens (for example `all-pages-flat`) and can contain non-ASCII characters. Any importer path that uses the WordPress slug as the menu name needs to normalise it.
+
+### Steps to reproduce
+
+1. Take the WordPress theme unit test data export (5 nav menus, 70 `nav_menu_item` posts, no `nav_menu` term definitions).
+2. Run the WXR analysis step and observe `menus=0`.
+3. Import the export and list the menus. Only the seed menu exists.
+
+### Suggested fix
+
+When there is no `<wp:term>` definition, build the menus from the `nav_menu` category assignments on the items. Use the `domain="nav_menu"` nicename as the key, and fall back to the slug as the label. For names, lowercase the slug, strip diacritics, replace each run of other characters with `_`, trim leading and trailing `_`, and prefix a letter when the name starts with a digit or is empty. Keep any fallback name unique, so that menus whose slugs contain no Latin letters do not collide.
+
+### Our workaround
+
+The wp-migrate package has a menus pass that reads the `nav_menu_item` posts directly from the export, groups them by menu slug, and resolves each target (entry, term or custom URL) to the new site's IDs. Items whose target is not published are dropped, and their children move up one level. The pass writes the menus through MCP, normalises the menu names as described above, and copies one menu into the template's `primary` location, because theme locations are not in the WXR.
+
+---
+
+## 6. Feature request: MCP tools for managing redirects
+
+**Labels:** enhancement, mcp
+
+### Description
+
+EmDash core has a full redirect system. `/_emdash/api/redirects` supports create, list, update and delete, along with redirect groups and a 404 log. Redirects can be 301, 302, 307, 308, 410 or 451, and the system has pattern rules, hit counts and loop validation on write. An admin-scope PAT works against this API.
+
+The MCP server (72 tools) has no redirect tools. An agent cannot list, create or fix a redirect, and it cannot read the 404 log to find broken links.
+
+This matters most after a migration. A WXR import creates no redirects (F13: 0 redirects created), so old permalinks return 404. The only route we found for fixing this is calling the REST API directly with an admin-scope token, which sits outside the MCP permission model.
+
+### Requested
+
+- MCP tools for list, get, create, update and delete on redirects, and for reading the 404 log. Add groups if they are useful to agents. Mark delete as `destructive`, as the other tools are.
+- A token scope such as `redirects:manage`, matching the existing `menus:manage` and `taxonomies:manage` scopes. That would let an agent manage redirects without an admin token.
+
+### Our workaround
+
+The wp-migrate package has a redirects pass that writes the old-permalink-to-new-URL map through the REST endpoint directly. On the theme unit test data it created 76 redirects, and all 76 old permalinks now return 301 and then 200. The same operations would let an agent manage redirects once they exist as MCP tools.
