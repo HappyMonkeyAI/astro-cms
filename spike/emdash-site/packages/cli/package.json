@@ -1,0 +1,22 @@
+{
+	"name": "@astro-cms/cli",
+	"version": "0.1.0",
+	"description": "Agency CLI for astro-cms sites: scoped API tokens for agents and migrations",
+	"type": "module",
+	"bin": {
+		"astro-cms": "src/cli.ts"
+	},
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"engines": {
+		"node": ">=24"
+	},
+	"license": "MIT"
+}
