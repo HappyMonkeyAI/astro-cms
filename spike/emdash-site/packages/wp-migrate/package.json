@@ -1,0 +1,22 @@
+{
+	"name": "@astro-cms/wp-migrate",
+	"version": "0.1.0",
+	"description": "WordPress to EmDash migration: WXR preflight and fix-up passes around EmDash's importer",
+	"type": "module",
+	"bin": {
+		"wp-migrate": "src/cli.ts"
+	},
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"engines": {
+		"node": ">=24"
+	},
+	"license": "MIT"
+}
