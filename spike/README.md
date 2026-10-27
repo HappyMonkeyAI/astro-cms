@@ -61,7 +61,7 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
 - **F11 🔴 The SSRF guard depends on Cloudflare DNS-over-HTTPS, even on Node.**
   - Every server-side fetch to an external host (including WordPress media import) resolves hostnames through `https://cloudflare-dns.com/dns-query`. It does not use the system resolver, and this can't be configured.
   - On networks that block public DoH (this one sinkholes `cloudflare-dns.com` to `0.0.0.0`, which is common on corporate and on-prem networks), every request fails with `SSRF_BLOCKED`. The import UI reports only "Failed to import media" (37 of 37).
-  - Our spike patch (`emdash-site/scripts/patch-emdash-ssrf.mjs`, run in the Dockerfile) uses `node:dns` on Node and keeps the non-public-IP validation. With it, 37 of 37 media files imported.
+  - Our spike patch (`emdash-site/scripts/patch-emdash.mjs`, run in the Dockerfile) uses `node:dns` on Node and keeps the non-public-IP validation. With it, 37 of 37 media files imported.
   - No upstream issue exists. This is the second upstream contribution.
 - **F12 🟢 The core content import is solid.**
   - Imported 79 of 79 entries (58 posts, 21 pages) in about 3 s with no errors. A re-import skipped all 79, so it's idempotent.

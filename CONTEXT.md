@@ -85,6 +85,8 @@ Before we commit, test EmDash hands-on (see `spike/README.md`):
 
 **If it passes:** write `SPEC.md` for the distribution. **If it fails:** the evidence justifies building our own core, and this document still applies apart from the "build on EmDash" hypothesis.
 
+**Outcome (2026-10-27): passed.** Every blocker was a small, upstreamable patch, and nothing needed a fork. Items 1, 3 and 4 are done; item 2 is done with test data, and a real client export is still to come. The distribution is specified in `SPEC.md`.
+
 ## Main risks
 
 - Depending on Cloudflare's roadmap and a small maintainer team. Mitigation: thin adapters, upstream contributions, fork as a last resort.
