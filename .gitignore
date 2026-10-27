@@ -11,3 +11,6 @@ uploads/
 
 # OAuth client secrets downloaded from Google Cloud / Entra
 client_secret*.json
+
+# Claude Code agent worktrees
+.claude/worktrees/
