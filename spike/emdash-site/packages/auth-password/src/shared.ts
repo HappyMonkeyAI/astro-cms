@@ -2,12 +2,20 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { PasswordAuthConfig } from "./auth.ts";
+import type { EmailMessage } from "./emails.ts";
+import type { ChallengeRecord, ResetRecord, Store } from "./tokens.ts";
 
 export const PROVIDER_ID = "password";
 
 export const STORAGE = {
 	// Keyed by EmDash user id: { hash, updatedAt }
 	credentials: { indexes: [] as string[] },
+	// Keyed by user id: { hash, expiresAt } (password reset token, hashed)
+	resets: { indexes: [] as string[] },
+	// Keyed by sha256(challenge id): email 2FA code challenge (hashed code)
+	challenges: { indexes: [] as string[] },
+	// Keyed by user id: { enabledAt }; row present = email 2FA enabled
+	twoFactor: { indexes: [] as string[] },
 };
 
 export interface PasswordCredential {
@@ -15,8 +23,12 @@ export interface PasswordCredential {
 	updatedAt: string;
 }
 
-interface EmdashLocals {
+export interface EmdashLocals {
 	db: Kysely<unknown>;
+	email?: {
+		isAvailable(): boolean;
+		send(message: EmailMessage, source: string): Promise<void>;
+	} | null;
 	config?: {
 		database?: { type?: string };
 		authProviders?: Array<{ id: string; config?: unknown }>;
@@ -28,17 +40,52 @@ export function getProviderConfig(emdash: EmdashLocals): PasswordAuthConfig {
 	return (provider?.config ?? {}) as PasswordAuthConfig;
 }
 
-export async function getCredentialStore(emdash: EmdashLocals) {
+async function getStorage(emdash: EmdashLocals) {
 	const { getAuthProviderStorage } = await import("emdash/api/route-utils");
-	const storage = getAuthProviderStorage(
+	return getAuthProviderStorage(
 		emdash.db as Parameters<typeof getAuthProviderStorage>[0],
 		PROVIDER_ID,
 		STORAGE,
 	);
-	return storage.credentials as {
-		get(id: string): Promise<PasswordCredential | null>;
-		put(id: string, data: PasswordCredential): Promise<void>;
+}
+
+export async function getCredentialStore(emdash: EmdashLocals) {
+	return (await getStorage(emdash)).credentials as Store<PasswordCredential>;
+}
+
+export async function getResetStore(emdash: EmdashLocals) {
+	return (await getStorage(emdash)).resets as Store<ResetRecord>;
+}
+
+export async function getChallengeStore(emdash: EmdashLocals) {
+	return (await getStorage(emdash)).challenges as Store<ChallengeRecord>;
+}
+
+export async function getTwoFactorStore(emdash: EmdashLocals) {
+	return (await getStorage(emdash)).twoFactor as Store<{ enabledAt: string }> & {
+		exists(id: string): Promise<boolean>;
 	};
+}
+
+/**
+ * Send through EmDash's email pipeline (the `email:deliver` transport, e.g.
+ * @astro-cms/email-smtp), exactly as core's magic-link route does.
+ * Throws when no transport is configured.
+ */
+export async function sendMail(emdash: EmdashLocals, message: EmailMessage): Promise<void> {
+	if (!emdash.email?.isAvailable()) throw new Error("Email is not configured");
+	await emdash.email.send(message, "system");
+}
+
+export async function getSiteName(emdash: EmdashLocals): Promise<string> {
+	try {
+		const { OptionsRepository } = await import("emdash/api/route-utils");
+		const options = new OptionsRepository(emdash.db as never);
+		const title = (await options.getMany(["emdash:site_title"])).get("emdash:site_title");
+		return typeof title === "string" && title ? title : "EmDash";
+	} catch {
+		return "EmDash";
+	}
 }
 
 // Same key as EmDash core's createFirstAdmin, so passkey and password setup

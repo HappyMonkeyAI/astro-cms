@@ -6,7 +6,7 @@
 import { Button, Input } from "@cloudflare/kumo";
 import * as React from "react";
 
-async function postJson(url: string, body: unknown): Promise<void> {
+async function postJson<T = unknown>(url: string, body: unknown): Promise<T | undefined> {
 	const response = await fetch(url, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
@@ -16,6 +16,8 @@ async function postJson(url: string, body: unknown): Promise<void> {
 		const data: { error?: { message?: string } } = await response.json().catch(() => ({}));
 		throw new Error(data?.error?.message || "Request failed");
 	}
+	const json: { data?: T } = await response.json().catch(() => ({}));
+	return json.data;
 }
 
 function KeyIcon({ className }: { className?: string }) {
@@ -90,9 +92,55 @@ function InviteForm({ token }: { token: string }) {
 	);
 }
 
-export function LoginForm() {
-	const [email, setEmail] = React.useState("");
-	const [password, setPassword] = React.useState("");
+/** Reset-request step: emails a link; the response never says whether the address has an account. */
+function ForgotForm({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+	const [email, setEmail] = React.useState(initialEmail);
+	const [isLoading, setIsLoading] = React.useState(false);
+	const [sent, setSent] = React.useState(false);
+	const [error, setError] = React.useState<string | null>(null);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setIsLoading(true);
+		setError(null);
+		try {
+			await postJson("/_emdash/api/auth/password/reset-request", { email });
+			setSent(true);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Request failed");
+		}
+		setIsLoading(false);
+	};
+
+	if (sent) {
+		return (
+			<div className="space-y-3 text-center">
+				<p className="text-sm">If an account exists for {email}, we have emailed a link to choose a new password. It works once and expires in 30 minutes.</p>
+				<Button type="button" variant="outline" className="w-full" onClick={onBack}>
+					Back to sign in
+				</Button>
+			</div>
+		);
+	}
+
+	return (
+		<form onSubmit={handleSubmit} className="space-y-3">
+			<p className="text-xs text-kumo-subtle text-center">Enter your email and we will send you a link to choose a new password.</p>
+			<Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" disabled={isLoading} />
+			<ErrorBox message={error} />
+			<Button type="submit" className="w-full" disabled={isLoading || !email}>
+				{isLoading ? "Sending..." : "Email me a reset link"}
+			</Button>
+			<button type="button" className="w-full text-center text-sm text-kumo-subtle underline" onClick={onBack}>
+				Back to sign in
+			</button>
+		</form>
+	);
+}
+
+/** Email 2FA step: shown after a correct password when the account has 2FA on. */
+function CodeForm({ challenge, onBack }: { challenge: string; onBack: () => void }) {
+	const [code, setCode] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 
@@ -101,13 +149,62 @@ export function LoginForm() {
 		setIsLoading(true);
 		setError(null);
 		try {
-			await postJson("/_emdash/api/auth/password/login", { email, password });
+			await postJson("/_emdash/api/auth/password/login-verify", { challenge, code });
+			window.location.href = "/_emdash/admin";
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Verification failed");
+			setIsLoading(false);
+		}
+	};
+
+	return (
+		<form onSubmit={handleSubmit} className="space-y-3">
+			<p className="text-xs text-kumo-subtle text-center">We emailed you a 6-digit code. It expires in 10 minutes.</p>
+			<Input label="Sign-in code" type="text" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={7} disabled={isLoading} />
+			<ErrorBox message={error} />
+			<Button type="submit" className="w-full" disabled={isLoading || code.replace(/\s/g, "").length !== 6}>
+				{isLoading ? "Verifying..." : "Verify and sign in"}
+			</Button>
+			<button type="button" className="w-full text-center text-sm text-kumo-subtle underline" onClick={onBack}>
+				Start over
+			</button>
+		</form>
+	);
+}
+
+export function LoginForm() {
+	const [email, setEmail] = React.useState("");
+	const [password, setPassword] = React.useState("");
+	const [isLoading, setIsLoading] = React.useState(false);
+	const [error, setError] = React.useState<string | null>(null);
+	const [step, setStep] = React.useState<"password" | "forgot" | "code">("password");
+	const [challenge, setChallenge] = React.useState("");
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setIsLoading(true);
+		setError(null);
+		try {
+			const data = await postJson<{ twoFactorRequired?: boolean; challenge?: string }>(
+				"/_emdash/api/auth/password/login",
+				{ email, password },
+			);
+			if (data?.twoFactorRequired && data.challenge) {
+				setChallenge(data.challenge);
+				setPassword("");
+				setStep("code");
+				setIsLoading(false);
+				return;
+			}
 			window.location.href = "/_emdash/admin";
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Sign-in failed");
 			setIsLoading(false);
 		}
 	};
+
+	if (step === "forgot") return <ForgotForm initialEmail={email} onBack={() => setStep("password")} />;
+	if (step === "code") return <CodeForm challenge={challenge} onBack={() => setStep("password")} />;
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-3">
@@ -117,6 +214,9 @@ export function LoginForm() {
 			<Button type="submit" className="w-full" disabled={isLoading || !email || !password}>
 				{isLoading ? "Signing in..." : "Sign in"}
 			</Button>
+			<button type="button" className="w-full text-center text-sm text-kumo-subtle underline" onClick={() => setStep("forgot")}>
+				Forgot password?
+			</button>
 		</form>
 	);
 }

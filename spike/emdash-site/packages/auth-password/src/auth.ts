@@ -41,6 +41,22 @@ export function password(config: PasswordAuthConfig = {}): AuthProviderDescripto
 				entrypoint: "@astro-cms/auth-password/routes/invite-complete.ts",
 			},
 			{
+				pattern: "/_emdash/api/auth/password/login-verify",
+				entrypoint: "@astro-cms/auth-password/routes/login-verify.ts",
+			},
+			{
+				pattern: "/_emdash/api/auth/password/reset-request",
+				entrypoint: "@astro-cms/auth-password/routes/reset-request.ts",
+			},
+			{
+				pattern: "/_emdash/api/auth/password/reset",
+				entrypoint: "@astro-cms/auth-password/routes/reset.ts",
+			},
+			{
+				pattern: "/_emdash/api/auth/password/two-factor",
+				entrypoint: "@astro-cms/auth-password/routes/two-factor.ts",
+			},
+			{
 				pattern: "/_emdash/api/setup/password-admin",
 				entrypoint: "@astro-cms/auth-password/routes/setup-admin.ts",
 			},
