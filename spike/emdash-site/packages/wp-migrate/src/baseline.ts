@@ -24,6 +24,11 @@ export interface BaselineOutcome {
 export interface BaselineReport {
 	created: BaselineOutcome[];
 	alreadyHadHistory: number;
+	/**
+	 * Snapshot saved as a draft revision, but re-publishing was refused by a publish policy
+	 * (e.g. migration-guard found leftovers). History exists; the go-live check reports why.
+	 */
+	blocked: BaselineOutcome[];
 	failed: BaselineOutcome[];
 }
 
@@ -39,7 +44,7 @@ export function needsBaseline(item: { liveRevisionId?: string | null; draftRevis
 
 export async function createBaselineRevisions(options: { mcp: McpClient; dryRun?: boolean; log?: (line: string) => void }): Promise<BaselineReport> {
 	const { mcp, dryRun, log = () => {} } = options;
-	const report: BaselineReport = { created: [], alreadyHadHistory: 0, failed: [] };
+	const report: BaselineReport = { created: [], alreadyHadHistory: 0, blocked: [], failed: [] };
 
 	for (const { slug: collection } of await listCollections(mcp)) {
 		for (const id of await listEntryIds(mcp, collection)) {
@@ -72,11 +77,20 @@ export async function createBaselineRevisions(options: { mcp: McpClient; dryRun?
 				if (!outcome.revisionId) throw new Error("no revision was created");
 				report.created.push(outcome);
 			} catch (error) {
-				report.failed.push({ ...outcome, error: error instanceof Error ? error.message : String(error) });
-				log(`${collection}/${outcome.slug}: FAILED ${report.failed.at(-1)!.error}`);
+				const message = error instanceof Error ? error.message : String(error);
+				if (message.includes("PUBLISH_REJECTED")) {
+					report.blocked.push({ ...outcome, error: message });
+					log(`${collection}/${outcome.slug}: snapshot saved; re-publish blocked by policy`);
+				} else {
+					report.failed.push({ ...outcome, error: message });
+					log(`${collection}/${outcome.slug}: FAILED ${message}`);
+				}
 			}
 		}
 	}
-	log(`baseline revisions: ${report.created.length} created, ${report.alreadyHadHistory} already had history, ${report.failed.length} failed`);
+	log(
+		`baseline revisions: ${report.created.length} created, ${report.blocked.length} saved but publish blocked, ` +
+			`${report.alreadyHadHistory} already had history, ${report.failed.length} failed`,
+	);
 	return report;
 }

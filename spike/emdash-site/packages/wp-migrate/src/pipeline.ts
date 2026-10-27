@@ -79,19 +79,28 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			true,
 		);
 
-		let mediaReport: string | undefined;
+		// Content errors stop the run; failed media downloads (e.g. the old host is offline)
+		// are reported as their own step so the remaining passes still run.
+		let imported: Awaited<ReturnType<typeof importWxr>> | undefined;
 		await step(
 			"import",
 			async () => {
-				const s = await importWxr({ base, token, file: preparedPath, outDir: join(outDir, "import") });
-				mediaReport = s.mediaReport;
+				imported = await importWxr({ base, token, file: preparedPath, outDir: join(outDir, "import") });
 				return {
-					ok: s.errors.length === 0 && (s.media?.failed ?? 0) === 0,
-					summary: `${s.imported} imported, ${s.skipped} skipped, ${s.errors.length} errors; media ${s.media?.imported ?? 0} imported, ${s.media?.failed ?? 0} failed`,
+					ok: imported.errors.length === 0,
+					summary: `${imported.imported} imported, ${imported.skipped} skipped, ${imported.errors.length} errors`,
 				};
 			},
 			true,
 		);
+		const mediaReport = imported?.mediaReport;
+		if (imported?.media) {
+			const { media: m } = imported;
+			await step("media import", async () => ({
+				ok: m.failed === 0,
+				summary: `${m.imported} imported, ${m.failed} failed${m.failed ? " (see import/4-media.json; references to them stay on the old host)" : ""}`,
+			}));
+		}
 
 		const media = mediaReport ? JSON.parse(await readFile(mediaReport, "utf8")).imported ?? [] : [];
 		const mcp = await connectMcp(base, token);
@@ -134,7 +143,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 		await step("baseline revisions", async () => {
 			const r = await createBaselineRevisions({ mcp });
 			await save("baseline.json", r);
-			return { ok: !r.failed.length, summary: `${r.created.length} created, ${r.alreadyHadHistory} already had history, ${r.failed.length} failed` };
+			return {
+				ok: !r.failed.length,
+				summary:
+					`${r.created.length} created, ${r.blocked.length} saved but re-publish blocked by migration-guard, ` +
+					`${r.alreadyHadHistory} already had history, ${r.failed.length} failed`,
+			};
 		});
 		await step("go-live check", async () => {
 			report.goLive = await goLiveCheck({ rest, mcp, legacyHosts: prepared.preflight.legacyHosts });

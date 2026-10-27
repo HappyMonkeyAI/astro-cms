@@ -197,4 +197,22 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   - There are no MCP tools for it (F15).
   - `wp-migrate redirects` writes there: 76/76 old permalinks → 301 → 200 on the theme unit test data.
 
+- **F23 🟠 First realistic export: OceanWP "lawyer" demo** (`github.com/oceanwp/oceanwp-sample-data`, an Elementor business site; no licence, so kept in the gitignored `client-data/`).
+  - **Ran `wp-migrate migrate` in one command (11 s)** and finished with a correct **NOT READY**.
+    - 13 entries imported with 0 errors. The private "WPForms Preview" page was drafted.
+    - 11 redirects and 3 menus (+ `primary`) were created.
+  - **Old host offline:** 27 of 29 images return 404 from the demo server, so legacy-host URLs stay on 9 entries, and the go-live check lists them.
+    - The pipeline now reports media failures as their own step and carries on (it previously stopped after import).
+    - Needs: a `--uploads <dir>` option that uploads from a copy of `wp-content/uploads` (also the answer for sites behind a firewall or running locally, where the SSRF guard blocks private hosts; upstream #3815).
+  - **Contact Form 7** shortcodes on Home and FAQ were flagged by migration-guard, which also refused to re-publish those pages during the baseline pass.
+    - This is correct behaviour, now reported as "blocked", not "failed".
+    - Forms need our planned `forms` plugin (SPEC §5.6) or a manual decision.
+  - **Elementor pages migrate as content, not design.**
+    - **Kept:** the `content:encoded` fallback HTML. Text came through at 133/135 and 86/88 distinct words on the rendered pages, along with h2/h3 headings, images in place and reading order.
+    - **Lost:**
+      - sections, columns, spacing and styling;
+      - accordion structure (the FAQ questions became plain paragraphs);
+      - anything that exists only in `_elementor_data` JSON, e.g. hero background images, which therefore also escape the legacy-URL check.
+    - Fine for the agency model, where the design is rebuilt as an Astro theme. An "Elementor JSON → EmDash blocks" pass (columns, cover, buttons, accordion) is a candidate for the paid migration tooling.
+
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

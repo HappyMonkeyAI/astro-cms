@@ -74,6 +74,19 @@ test("createBaselineRevisions snapshots entries without history, publishes only 
 	assert.equal(site.state.get("c")!.live, undefined, "the scheduled entry keeps a draft revision only");
 });
 
+test("a publish refused by policy is reported as blocked, not failed", async () => {
+	const site = fakeSite([{ id: "a", slug: "contact", status: "published" }]);
+	const call = site.mcp.call.bind(site.mcp);
+	site.mcp.call = async (tool: string, args: any) => {
+		if (tool === "content_publish") throw new Error("content_publish: [PUBLISH_REJECTED] Migration leftovers must be fixed before publishing: 1× [contact-form-7].");
+		return call(tool, args);
+	};
+	const report = await createBaselineRevisions({ mcp: site.mcp });
+	assert.deepEqual(report.failed, []);
+	assert.deepEqual(report.blocked.map((o) => o.slug), ["contact"]);
+	assert.ok(site.state.get("a")!.draft, "the snapshot exists as a draft revision");
+});
+
 test("a re-run creates nothing", async () => {
 	const site = fakeSite([{ id: "a", slug: "pub", status: "published" }]);
 	await createBaselineRevisions({ mcp: site.mcp });
