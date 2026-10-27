@@ -54,6 +54,7 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 
 | Package | Kind | Responsibility | Spike state |
 |---|---|---|---|
+| `@astro-cms/runtime-config` | db + storage adapters | Read `DATABASE_URL` and `UPLOADS_DIR` at server start (F1, F3) | Built, accepted (§5.1) |
 | `@astro-cms/patches` | build script | Apply and verify EmDash patches; **fail the build** if a target string isn't found (detects upstream drift) | `patch-emdash.mjs`: F11, F18 |
 | `@astro-cms/auth-password` | auth provider | Password setup, login, invite acceptance; later email-code 2FA and password reset | Built, 7 tests (F9, F20) |
 | `@astro-cms/email-smtp` | native plugin | `email:deliver` via nodemailer, `SMTP_URL` read at send time | Built (F20) |
@@ -69,7 +70,9 @@ Goal: **migrate one real client WordPress site and hand it over**, with the clie
 
 ### 5.1 Runtime configuration (blocks everything else)
 
-- Patch the database config to resolve `DATABASE_URL` at runtime (F1). The storage directory and other serialised options get the same treatment (F3).
+- **Done (2026-10-27), with no patch:** `@astro-cms/runtime-config` provides `postgresFromEnv()` and `localFromEnv()`.
+  - Their descriptors point EmDash at our own entrypoints, which read `DATABASE_URL` and `UPLOADS_DIR` when the server starts and then delegate to EmDash's adapters (F1, F3).
+  - S3 storage and `EMDASH_SITE_URL` were already read at runtime.
 - Keep the F11 (system DNS for the SSRF guard) and F18 (OAuth env at request time) patches.
 - **Acceptance:**
   - Build the image with **no** env.
@@ -193,7 +196,7 @@ These shrink `@astro-cms/patches`. File issues first, then PRs.
 
 | # | Issue | Our patch |
 |---|---|---|
-| 1 | Database config serialised at build time; password in `dist/` (F1) | v0.1 §5.1 |
+| 1 | Database config serialised at build time, so the documented `postgres({ connectionString: process.env.DATABASE_URL })` puts the password in `dist/` (F1). Propose an env-name option like migrations already have | `@astro-cms/runtime-config` (no patch) |
 | 2 | SSRF guard requires Cloudflare DoH on Node (F11) | `patch-emdash.mjs` |
 | 3 | OAuth credentials inlined at build time on Node (F18) | `patch-emdash.mjs` |
 | 4 | Docs drift: policy `origin` shape, sandbox on Node, `/health`, `createPluginRuntimeTestHost`, `ca-certificates` (F8, F17) | none |

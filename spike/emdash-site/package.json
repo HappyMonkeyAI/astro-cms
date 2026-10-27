@@ -27,6 +27,7 @@
     "@emdash-cms/sandbox-workerd": "0.9.5",
     "workerd": "1.20261019.1",
     "@astro-cms/email-smtp": "file:packages/email-smtp",
+    "@astro-cms/runtime-config": "file:packages/runtime-config",
     "nodemailer": "10.2.1"
   },
   "devDependencies": {

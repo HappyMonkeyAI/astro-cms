@@ -1,0 +1,22 @@
+{
+	"name": "@astro-cms/runtime-config",
+	"version": "0.1.0",
+	"description": "EmDash database and storage adapters that read their settings from the environment at runtime, so one build serves every site",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./db/postgres": "./src/db/postgres.ts",
+		"./storage/local": "./src/storage/local.ts"
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": ">=1.3.0"
+	}
+}

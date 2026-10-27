@@ -19,10 +19,8 @@ services:
       - "127.0.0.1:8025:8025"
 
   emdash:
-    build:
-      context: .
-      args:
-        DATABASE_URL: postgres://emdash:emdash-spike@db:5432/emdash
+    build: .
+    image: astro-cms/site:spike
     depends_on:
       db:
         condition: service_healthy

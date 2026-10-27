@@ -9,11 +9,8 @@ RUN npm install --no-audit --no-fund
 COPY scripts ./scripts
 RUN node scripts/patch-emdash.mjs
 COPY . .
-ARG EMDASH_SITE_URL=http://localhost:4321
-ENV EMDASH_SITE_URL=$EMDASH_SITE_URL
-ARG DATABASE_URL
-ARG UPLOADS_DIR=/app/data/uploads
-RUN DATABASE_URL=$DATABASE_URL UPLOADS_DIR=$UPLOADS_DIR npm run build
+# No site-specific settings at build time: one image serves every site (SPEC §5.1)
+RUN npm run build
 
 FROM node:24-bookworm-slim
 # workerd (plugin sandbox) refuses to start without system CA certificates

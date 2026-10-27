@@ -35,7 +35,16 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - If `DATABASE_URL` is present at build time, **the password is embedded in `dist/` and therefore in the Docker image.**
   - S3 storage reads its env vars at runtime (`dist/storage/s3.mjs`). Postgres does not.
   - I found no upstream issue (searched 2026-10-25), so this is a good first upstream contribution.
-  - The spike works around it with a build arg, which is only acceptable because the password is a throwaway local one.
+  - The spike originally worked around it with a build arg, which was only acceptable because the password is a throwaway local one.
+  - **Resolved without a patch (2026-10-27): `packages/runtime-config`** (also fixes F3).
+    - `postgresFromEnv()` and `localFromEnv()` are descriptors whose `entrypoint` is our module.
+    - EmDash bundles whichever module a descriptor names, and calls its `createDialect`/`createStorage` when the server starts. Our modules read `DATABASE_URL`/`UPLOADS_DIR` at that point, then delegate to EmDash's own adapters. Migrations already read `DATABASE_URL` at runtime through `manifestConfig.connectionStringEnv`.
+    - **Acceptance test (SPEC §5.1) passed.** The image was built with no build args:
+      - Scanning `dist/` for the DB password, `postgres://`, OAuth IDs and secrets, the SMTP host and the uploads path found 0 matches.
+      - Image `Env` holds only Node defaults plus `HOST`/`PORT`, and the build history mentions no secrets.
+      - Site 1 kept its content and media.
+      - **A second container from the same image** got its own database (73 tables migrated and seeded, 0 users), its own Google client ID and redirect URI (`:4322`), and its own upload directory. An upload landed only in its own folder.
+    - `EMDASH_SITE_URL` was already read at runtime.
 - **F2 🔴 Full-text search is SQLite-only.**
   - On Postgres, seeding logs `Full-text search is only available with SQLite databases` for posts and pages.
   - The template's `/search` still renders but returns nothing.
@@ -43,6 +52,7 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
 - **F3 🟠 Other values are also fixed at build time, including the storage directory.**
   - Setting it through env at runtime does nothing, so uploads silently go to the container's temporary filesystem unless the path is fixed at build time.
   - Rule for our distribution: one image per environment, or patch EmDash to resolve config at runtime.
+  - **Resolved** by `localFromEnv()` (see F1).
 - **F4 🟠 The database driver is chosen at build time.** The same build can't switch between SQLite and Postgres.
 - **F5 🟢 Agent-ready from the start.** The scaffold ships `AGENTS.md`, `.agents/skills/` (site building, plugins, CLI) and a docs MCP server in `.mcp.json`, `.cursor/` and `.vscode/`.
 - **F6 🟢 Schema in Git partly exists already.** The `seed/seed.json` collections (fields, `supports`, `urlPattern`) are applied on first start. Still to test: whether seed changes are re-applied to an existing site, which decides whether "schema in Git" is ours to build.
