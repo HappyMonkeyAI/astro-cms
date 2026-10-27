@@ -1,0 +1,29 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "agent-guard",
+	"publisher": "did:web:spike.example.com",
+
+	"license": "MIT",
+	"author": { "name": "astro-cms spike" },
+	"security": { "email": "security@example.com" },
+	"description": "AI agents can't publish on their own: MCP publishes by non-admins become approval requests an editor decides",
+
+	// Trust contract.
+	//  - hooks.content-policy:register: the beforePublish policy that turns agent publishes into requests
+	//  - content:read: read content for the request list
+	//  - content:publish: lets the plugin (not the agent) publish an approved entry, fenced on the
+	//    reviewed revision (_rev), and read that revision via getVersioned
+	// No content writes, no network.
+	"capabilities": ["content:read", "content:publish", "hooks.content-policy:register"],
+	"allowedHosts": [],
+	"storage": {
+		// One record per entry, keyed "<collection>:<id>"
+		"requests": { "indexes": ["status", "requestedAt", "decidedAt"] },
+		// Every policy decision and every approve/reject/stale event
+		"audit_log": { "indexes": ["at", "event", "decision"] },
+	},
+	"admin": {
+		"pages": [{ "path": "/approvals", "label": "Agent approvals", "icon": "shield" }],
+	},
+}
