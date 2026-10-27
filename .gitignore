@@ -14,3 +14,6 @@ client_secret*.json
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Client data (WordPress exports, uploads, migration output): never commit
+client-data/
