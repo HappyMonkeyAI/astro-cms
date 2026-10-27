@@ -7,12 +7,19 @@
  *   astro-cms token list   --base <site-url>
  *   astro-cms token revoke --base <site-url> --id <token-id>
  *
+ *   astro-cms agent create  --base <site-url> --name <agent> [--profile agent-editor|agent-readonly] [--role editor|author] [--expires 90d]
+ *   astro-cms agent list    --base <site-url>
+ *   astro-cms agent disable --base <site-url> --id <agent-user-id>
+ *
+ * Agents get their own non-admin account owning their token (needs @astro-cms/auth-password's
+ * /_emdash/api/agents route), so agent-guard holds their publishes and edits are attributed to them.
+ *
  * Authenticates with an admin-scope token in ASTRO_CMS_ADMIN_TOKEN. The created token is
  * printed once and never stored.
  */
 
 import { parseLifetime, PROFILES } from "./profiles.ts";
-import { tokenClient } from "./tokens.ts";
+import { agentClient, tokenClient } from "./tokens.ts";
 
 const [group, command, ...args] = process.argv.slice(2);
 const option = (name: string) => {
@@ -27,13 +34,16 @@ function usage(): never {
 			"       astro-cms token create --base <site-url> --profile <name> --name <token-name> [--expires 30d|12h]",
 			"       astro-cms token list --base <site-url>",
 			"       astro-cms token revoke --base <site-url> --id <token-id>",
+			"       astro-cms agent create --base <site-url> --name <agent> [--profile agent-editor|agent-readonly] [--role editor|author] [--expires 90d]",
+			"       astro-cms agent list --base <site-url>",
+			"       astro-cms agent disable --base <site-url> --id <agent-user-id>",
 			"Admin token: ASTRO_CMS_ADMIN_TOKEN",
 		].join("\n"),
 	);
 	process.exit(2);
 }
 
-if (group !== "token") usage();
+if (group !== "token" && group !== "agent") usage();
 
 if (command === "profiles") {
 	for (const [name, p] of Object.entries(PROFILES)) console.log(`${name.padEnd(15)} ${p.days}d  ${p.description}\n${" ".repeat(19)}${p.scopes.join(" ")}`);
@@ -48,6 +58,39 @@ if (!adminToken) {
 	process.exit(2);
 }
 const tokens = tokenClient(base, adminToken);
+
+if (group === "agent") {
+	const agents = agentClient(base, adminToken);
+	if (command === "create") {
+		const profileName = option("--profile") ?? "agent-editor";
+		const name = option("--name");
+		const profile = PROFILES[profileName];
+		if (!profile || !name) usage();
+		if (profile.scopes.includes("admin")) {
+			console.error(`The ${profileName} preset is admin; agents never get admin. Use agent-editor or agent-readonly.`);
+			process.exit(2);
+		}
+		const expiresAt = new Date(Date.now() + parseLifetime(option("--expires"), profile.days));
+		const { token, agent, info } = await agents.create(name, profile.scopes, expiresAt, option("--role") === "author" ? 30 : 40);
+		console.log(`Created agent account "${agent.name}" (id ${agent.id}, role ${agent.role === 40 ? "editor" : "author"}, ${agent.email})`);
+		console.log(`Token ${info.prefix}… (${profileName}) expires ${info.expiresAt}; scopes: ${info.scopes.join(" ")}`);
+		console.log(`\n${token}\n\nThis is the only time the token is shown. Store it in the agent's secret store.`);
+		console.log(`Its publishes go to an editor for approval; disable the account to cut it off: astro-cms agent disable --base ${base} --id ${agent.id}`);
+	} else if (command === "list") {
+		for (const a of await agents.list()) {
+			console.log(`${a.id}  ${a.name}${a.disabled ? "  [DISABLED]" : ""}  role ${a.role}`);
+			for (const t of a.tokens) console.log(`    ${t.prefix}…  ${t.scopes.join(" ")}  expires ${t.expiresAt ?? "never"}  last used ${t.lastUsedAt ?? "never"}`);
+		}
+	} else if (command === "disable") {
+		const id = option("--id");
+		if (!id) usage();
+		await agents.disable(id);
+		console.log(`Disabled agent ${id}; its tokens no longer work.`);
+	} else {
+		usage();
+	}
+	process.exit(process.exitCode ?? 0);
+}
 
 if (command === "create") {
 	const profileName = option("--profile");

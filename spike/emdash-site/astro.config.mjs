@@ -5,6 +5,7 @@ import emdash from "emdash/astro";
 import { password } from "@astro-cms/auth-password";
 import { localFromEnv, postgresFromEnv } from "@astro-cms/runtime-config";
 import migrationGuard from "migration-guard";
+import agentGuard from "agent-guard";
 import { smtpEmail } from "@astro-cms/email-smtp";
 import { google } from "emdash/auth/providers/google";
 import { microsoft } from "emdash/auth/providers/microsoft";
@@ -26,7 +27,8 @@ export default defineConfig({
 			authProviders: [password(), google(), microsoft()],
 			plugins: [smtpEmail({ from: { email: "cms@spike.example.com", name: "Spike CMS" } })],
 			// Sandboxed: runs in a workerd child process on Node
-			sandboxed: [migrationGuard],
+			// agent-guard: MCP publishes by non-admin (agent) accounts wait for an editor's approval
+			sandboxed: [migrationGuard, agentGuard],
 			sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
 			storage: localFromEnv(),
 		}),

@@ -1,2 +1,2 @@
 export { parseLifetime, PROFILES, type TokenProfile } from "./profiles.ts";
-export { tokenClient, type TokenInfo } from "./tokens.ts";
+export { agentClient, tokenClient, type AgentAccount, type TokenInfo } from "./tokens.ts";

@@ -219,4 +219,27 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
       - anything that exists only in `_elementor_data` JSON, e.g. hero background images, which therefore also escape the legacy-URL check.
     - Fine for the agency model, where the design is rebuilt as an Astro theme. An "Elementor JSON → EmDash blocks" pass (columns, cover, buttons, accordion) is a candidate for the paid migration tooling.
 
+### Agent safety (milestone 4)
+
+- **F24 🔴→🟢 Agent tokens act as the admin who created them; fixed with agent accounts.**
+  - EmDash's destructive MCP tools check the token's scope (e.g. `content:write`) plus the **token owner's** role. Publish policies also see the owner as the actor, and revisions are attributed to the owner.
+  - In an agency, admins create every agent token, so a "content-only" agent could permanently delete content (F15), would pass a "non-admins need approval" policy, and would show up as the admin in history.
+  - **Fix 1, a patch.** The six destructive MCP tools (permanent content delete, collection and field delete, media, taxonomy and menu delete) also require the `admin` token scope. Trashing stays allowed. The build fails unless exactly six tools match.
+  - **Fix 2, agent accounts** (`astro-cms agent create`, admin-only `/_emdash/api/agents`). Each agent gets its own Editor (or Author) user with an `@agents.invalid` address and no credentials, which owns its scoped token.
+    - Disabling the user revokes its tokens immediately (EmDash's token auth rejects disabled users).
+  - **agent-guard** (sandboxed plugin): MCP publishes by non-admins become approval requests.
+    - Editors approve or reject on an admin page. Approval publishes exactly the reviewed revision (`_rev`-fenced); if the draft changed, nothing is published (stale).
+    - Agents can't approve: plugin routes need the admin scope for tokens.
+    - migration-guard still applies to approved publishes.
+  - **Live tests:**
+    - 11/11 for delete protection and token presets.
+    - 13/13 for agent accounts and approvals:
+      - the agent's publish was held and the live page unchanged;
+      - the agent's self-approval was refused (403);
+      - the editor's approval published, and the revision was attributed to the agent account;
+      - a stale approval published nothing;
+      - the disabled agent's token was cut off.
+    - Migrations (admin token) still publish directly.
+  - **Upstream candidates:** a per-token actor (so policies and history can tell tokens apart), and a delete policy hook.
+
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

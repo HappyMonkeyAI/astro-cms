@@ -57,6 +57,11 @@ export function password(config: PasswordAuthConfig = {}): AuthProviderDescripto
 				entrypoint: "@astro-cms/auth-password/routes/two-factor.ts",
 			},
 			{
+				// Admin-only (not under publicRoutes): agent accounts that own agents' API tokens
+				pattern: "/_emdash/api/agents",
+				entrypoint: "@astro-cms/auth-password/routes/agents.ts",
+			},
+			{
 				pattern: "/_emdash/api/setup/password-admin",
 				entrypoint: "@astro-cms/auth-password/routes/setup-admin.ts",
 			},

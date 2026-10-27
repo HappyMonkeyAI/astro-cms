@@ -61,7 +61,8 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 | `@astro-cms/pg-search` | native plugin | Postgres full-text search (tsvector + pg_trgm) to replace SQLite-only FTS | Not started (F2) |
 | `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | All §5.2 passes done, plus `migrate` (one command) and `check` (go-live); 39 tests. Awaiting a real client export |
 | `migration-guard` | sandboxed plugin | Scan for WP leftovers, block publishing while they remain, issues admin page and MCP tools | Built, 6 tests (F16) |
-| `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Not started (F15) |
+| `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Done: revision-fenced approvals, 7 tests, live test 13/13 |
+| `@astro-cms/cli` | Node CLI | `astro-cms token …` presets; `astro-cms agent create/list/disable` | Done (token and agent commands) |
 | ~~`redirects`~~ | — | **Not needed:** EmDash core has redirects (301–451, patterns, hit counts, 404 log, loop checks, admin API). `wp-migrate redirects` writes to it. Still missing: MCP tools for redirects (F15) | Dropped (2026-10-27) |
 | `astro-cms` CLI | Node CLI | Site scaffolding, OAuth provisioning, `wp-migrate`, token management, upgrades | Scripts only (`spike/scripts/`) |
 
@@ -131,6 +132,8 @@ As decided in CONTEXT "Authentication", building on F19 and F20.
 
 EmDash's MCP server is the interface. We don't build our own (F14).
 
+- **Status (2026-10-27): done and live-tested** (24/24 checks across two runs). Details in spike F24.
+- **Agent accounts.** Each agent gets its own non-admin user (`@agents.invalid`, no credentials) owning its token, via `astro-cms agent create` and `@astro-cms/auth-password`'s admin-only `/_emdash/api/agents`. Without this, an agent token created by an admin acts as the admin: EmDash checks the token *owner's* role, and edits are attributed to the owner. Disabling the account revokes its tokens at once.
 - **Token profiles in the CLI.** Named presets map to EmDash scopes:
   - `agent-editor`: `content:read`, `content:write`, `media:read`, `media:write`, `mcp:tools:migration-guard`
   - `agent-readonly`
@@ -140,7 +143,7 @@ EmDash's MCP server is the interface. We don't build our own (F14).
   - Every attempt is logged (pattern proven in F16).
 - **Destructive actions:**
   - There is no `beforeDelete` / permanent-delete hook (F16), and `content:write` includes permanent delete (F17).
-  - v0.1 mitigation: a patch that refuses `content_permanent_delete` and `schema_delete_collection` for non-`admin` tokens.
+  - v0.1 mitigation: a patch that refuses `content_permanent_delete` and `schema_delete_collection` for non-`admin` tokens. **Done** for all six destructive tools (also schema field, media, taxonomy and menu deletes), by requiring the `admin` token scope. Trashing stays allowed.
   - Upstream: propose a delete policy hook.
 - **Out of v0.1:**
   - block-level patch edits

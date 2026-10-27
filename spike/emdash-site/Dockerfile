@@ -5,6 +5,7 @@ COPY packages ./packages
 # Build the sandboxed plugin from source (its dist/ is not committed)
 COPY plugins ./plugins
 RUN cd plugins/migration-guard && npm install --no-audit --no-fund && npm run build
+RUN cd plugins/agent-guard && npm install --no-audit --no-fund && npm run build
 RUN npm install --no-audit --no-fund
 COPY scripts ./scripts
 RUN node scripts/patch-emdash.mjs
@@ -23,6 +24,8 @@ COPY --from=builder /app/seed ./seed
 # node_modules/migration-guard is a symlink; workerd loads the bundle at runtime
 COPY --from=builder /app/plugins/migration-guard/dist ./plugins/migration-guard/dist
 COPY --from=builder /app/plugins/migration-guard/package.json /app/plugins/migration-guard/emdash-plugin.jsonc ./plugins/migration-guard/
+COPY --from=builder /app/plugins/agent-guard/dist ./plugins/agent-guard/dist
+COPY --from=builder /app/plugins/agent-guard/package.json /app/plugins/agent-guard/emdash-plugin.jsonc ./plugins/agent-guard/
 RUN mkdir -p /app/data/uploads
 ENV HOST=0.0.0.0
 ENV PORT=4321
