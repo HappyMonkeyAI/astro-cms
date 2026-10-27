@@ -2,6 +2,8 @@
 /**
  * astro-cms: agency CLI for astro-cms sites.
  *
+ *   astro-cms plugin new <slug> [--dir plugins] [--description <text>]   generate a sandboxed plugin
+ *
  *   astro-cms token profiles
  *   astro-cms token create --base <site-url> --profile <agent-editor|agent-readonly|migration> --name <name> [--expires 30d]
  *   astro-cms token list   --base <site-url>
@@ -18,7 +20,10 @@
  * printed once and never stored.
  */
 
+import { resolve } from "node:path";
+
 import { parseLifetime, PROFILES } from "./profiles.ts";
+import { defaults, scaffoldPlugin, validateSlug } from "./scaffold.ts";
 import { agentClient, tokenClient } from "./tokens.ts";
 
 const [group, command, ...args] = process.argv.slice(2);
@@ -30,7 +35,8 @@ const option = (name: string) => {
 function usage(): never {
 	console.error(
 		[
-			"Usage: astro-cms token profiles",
+			"Usage: astro-cms plugin new <slug> [--dir plugins] [--description <text>] [--publisher <did>] [--author <name>] [--security-email <email>]",
+			"       astro-cms token profiles",
 			"       astro-cms token create --base <site-url> --profile <name> --name <token-name> [--expires 30d|12h]",
 			"       astro-cms token list --base <site-url>",
 			"       astro-cms token revoke --base <site-url> --id <token-id>",
@@ -41,6 +47,28 @@ function usage(): never {
 		].join("\n"),
 	);
 	process.exit(2);
+}
+
+if (group === "plugin") {
+	if (command !== "new" || !args[0] || args[0].startsWith("--")) usage();
+	const slug = args[0];
+	const problem = validateSlug(slug);
+	if (problem) {
+		console.error(problem);
+		process.exit(2);
+	}
+	const dir = resolve(option("--dir") ?? ".", slug);
+	const vars = defaults(slug, {
+		description: option("--description"),
+		publisher: option("--publisher"),
+		author: option("--author"),
+		securityEmail: option("--security-email"),
+	});
+	const files = await scaffoldPlugin(dir, vars);
+	console.log(`Created ${vars.title} in ${dir} (${files.length} files)`);
+	console.log(`\nNext:\n  cd ${dir}\n  npm install\n  npm run check     # typecheck, validate, test, build`);
+	console.log(`\nThen read skills/creating-plugins/SKILL.md and ASTRO-CMS.md, and see README.md to add it to a site.`);
+	process.exit(0);
 }
 
 if (group !== "token" && group !== "agent") usage();

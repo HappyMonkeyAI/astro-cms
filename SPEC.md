@@ -133,6 +133,9 @@ As decided in CONTEXT "Authentication", building on F19 and F20.
 EmDash's MCP server is the interface. We don't build our own (F14).
 
 - **Status (2026-10-27): done and live-tested** (24/24 checks across two runs). Details in spike F24.
+  - **Still open:** a prompt-injection evaluation, i.e. how specific models react to instructions planted in content.
+  - The protections above were tested by acting as a fully compromised agent, so they hold regardless of model behaviour.
+  - Model-level testing needs a dedicated, isolated harness (only the CMS tools available to the agent), not agents running on a developer machine.
 - **Agent accounts.** Each agent gets its own non-admin user (`@agents.invalid`, no credentials) owning its token, via `astro-cms agent create` and `@astro-cms/auth-password`'s admin-only `/_emdash/api/agents`. Without this, an agent token created by an admin acts as the admin: EmDash checks the token *owner's* role, and edits are attributed to the owner. Disabling the account revokes its tokens at once.
 - **Token profiles in the CLI.** Named presets map to EmDash scopes:
   - `agent-editor`: `content:read`, `content:write`, `media:read`, `media:write`, `mcp:tools:migration-guard`

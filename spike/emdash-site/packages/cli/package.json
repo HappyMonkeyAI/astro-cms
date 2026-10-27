@@ -10,7 +10,8 @@
 		".": "./src/index.ts"
 	},
 	"files": [
-		"src"
+		"src",
+		"templates"
 	],
 	"scripts": {
 		"test": "node --test \"test/*.test.ts\""

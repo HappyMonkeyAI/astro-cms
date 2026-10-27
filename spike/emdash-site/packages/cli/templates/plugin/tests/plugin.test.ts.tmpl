@@ -1,0 +1,27 @@
+import { afterEach, describe, expect, it } from "vitest";
+
+import { createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
+
+// createPluginTestHost: direct hook/route/storage tests (fast).
+// createPluginRuntimeTestHost: real content, publishing, routes over HTTP, admin pages
+// (use it when a test needs genuinely published entries or EmDash's real publish path).
+let host: PluginTestHost | undefined;
+afterEach(async () => {
+	await host?.dispose();
+	host = undefined;
+});
+
+describe("{{slug}}", () => {
+	it("records and lists events", async () => {
+		host = await createPluginTestHost();
+		const pinged = (await host.invokeRoute("ping", { message: "hello" })) as { ok: boolean };
+		expect(pinged.ok).toBe(true);
+		const listed = (await host.invokeRoute("events", { limit: "5" })) as { items: Array<{ message: string }> };
+		expect(listed.items.map((i) => i.message)).toEqual(["hello"]);
+	});
+
+	it("rejects invalid input instead of throwing", async () => {
+		host = await createPluginTestHost();
+		expect(await host.invokeRoute("events", { limit: "abc" })).toMatchObject({ ok: false, error: "INVALID_INPUT" });
+	});
+});

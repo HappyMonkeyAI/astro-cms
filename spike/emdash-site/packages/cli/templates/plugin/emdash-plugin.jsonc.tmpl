@@ -1,0 +1,30 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "{{slug}}",
+	// A did:web or Atmosphere handle. Local plugins can keep a placeholder; publishing needs a real one.
+	"publisher": "{{publisher}}",
+
+	"license": "MIT",
+	"author": { "name": "{{author}}" },
+	"security": { "email": "{{securityEmail}}" },
+	"description": "{{description}}",
+
+	// Trust contract: declare every capability the runtime uses, and nothing more.
+	// Admins see this list when the plugin loads. Examples:
+	//   "content:read", "schema:read", "media:read"
+	//   "hooks.content-policy:register"   content:beforePublish policies
+	//   "hooks.page-fragments:register"   inject HTML/scripts into public pages
+	//   "content:publish"                 publish on someone's behalf (revision-fenced)
+	"capabilities": [],
+	// Every network destination the plugin may call with ctx.http.fetch()
+	"allowedHosts": [],
+	"storage": {
+		// Queryable records; storage collection names must be snake_case
+		"events": { "indexes": ["at"] },
+	},
+	"admin": {
+		// Paths must be "/" plus a name (letters, digits, "-", "_", "/"); a bare "/" is rejected
+		"pages": [{ "path": "/overview", "label": "{{title}}", "icon": "puzzle" }],
+	},
+}

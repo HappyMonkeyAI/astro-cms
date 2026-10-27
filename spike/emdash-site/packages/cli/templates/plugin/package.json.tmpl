@@ -1,0 +1,43 @@
+{
+	"name": "{{slug}}",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "{{description}}",
+	"packageManager": "npm@11.19.1",
+	"main": "dist/index.mjs",
+	"exports": {
+		".": {
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.mts"
+		},
+		"./sandbox": "./dist/plugin.mjs"
+	},
+	"files": [
+		"dist",
+		"emdash-plugin.jsonc"
+	],
+	"scripts": {
+		"validate": "emdash-plugin validate",
+		"build": "emdash-plugin build",
+		"dev": "emdash-plugin dev",
+		"typecheck": "tsc --noEmit",
+		"test": "emdash-plugin validate && vitest run",
+		"check": "npm run typecheck && npm test && npm run build",
+		"bundle": "emdash-plugin bundle"
+	},
+	"peerDependencies": {
+		"emdash": ">=1.3.0"
+	},
+	"devDependencies": {
+		"@emdash-cms/plugin-cli": "0.13.4",
+		"@emdash-cms/plugin-test": "^0.2.10",
+		"emdash": "^1.3.1",
+		"typescript": "^5.9.0",
+		"vitest": "^4.1.0"
+	},
+	"allowScripts": {
+		"esbuild": true,
+		"workerd": true
+	}
+}
