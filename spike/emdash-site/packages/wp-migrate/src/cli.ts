@@ -2,8 +2,10 @@
 /**
  * wp-migrate: WordPress → EmDash migration around EmDash's own importer.
  *
- *   wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--fetch-missing]
- *                                                      everything below in order, then the go-live check; exit 0 = ready
+ *   wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]...
+ *                      [--uploads <copy of wp-content/uploads>] [--fetch-missing]
+ *                                                      everything below in order, then the go-live check; exit 0 = ready.
+ *                                                      --uploads supplies media the old host can't serve (offline, LAN, local)
  *   wp-migrate check --prepared <dir> --base <site-url>
  *                                                      go-live check: migration-guard scan + leftover markers = 0
  *
@@ -44,6 +46,7 @@ import { fixRedirects } from "./fix-redirects.ts";
 import { fixShortcodes } from "./fix-shortcodes.ts";
 import { connectMcp } from "./mcp-client.ts";
 import { fixMediaMetadata } from "./media-metadata.ts";
+import { uploadLocalMedia } from "./local-media.ts";
 import { migrate } from "./pipeline.ts";
 import { describePrepared, prepareExport, writePrepared } from "./prepare.ts";
 import { connectRest } from "./rest-client.ts";
@@ -71,7 +74,8 @@ function readAssign(): Record<string, string> {
 function usage(): never {
 	console.error(
 		[
-			"Usage: wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--fetch-missing]",
+			"Usage: wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--uploads <wp-content/uploads copy>] [--fetch-missing]",
+			"       wp-migrate local-media --prepared <dir> --media <media-report.json> --uploads <dir> --base <site-url> [--dry-run]",
 			"       wp-migrate preflight <export.xml>",
 			"       wp-migrate prepare <export.xml> --out <dir>",
 			"       wp-migrate check --prepared <dir> --base <site-url>",
@@ -112,6 +116,7 @@ if (command === "preflight" || command === "prepare") {
 		token,
 		assign: readAssign(),
 		fetchMissing: args.includes("--fetch-missing"),
+		uploadsDir: option("--uploads"),
 		log: (line) => console.log(line),
 	});
 	console.log(report.ready ? "\nREADY TO GO LIVE" : `\nNOT READY: see ${join(outDir, "migrate-report.json")} and go-live.json`);
@@ -219,7 +224,7 @@ if (command === "preflight" || command === "prepare") {
 	for (const f of report.failed.slice(0, 10)) console.log(`  ! ${f.source}: ${f.error}`);
 	for (const url of unresolved.slice(0, 10)) console.log(`  - ${url}`);
 	if (report.failed.length || report.links.some((l) => l.error)) process.exitCode = 1;
-} else if (command === "fix-shortcodes" || command === "fix-media") {
+} else if (command === "fix-shortcodes" || command === "fix-media" || command === "local-media") {
 	const prepared = option("--prepared");
 	const mediaPath = option("--media");
 	const base = option("--base");
@@ -234,9 +239,25 @@ if (command === "preflight" || command === "prepare") {
 	const dryRun = args.includes("--dry-run");
 	const log = (line: string) => console.log(`  ${line}`);
 
-	if (command === "fix-media") {
+	if (command === "local-media") {
+		const uploadsDir = option("--uploads");
+		if (!uploadsDir) usage();
+		const r = await uploadLocalMedia({
+			uploadsDir,
+			attachments: JSON.parse(await readFile(join(prepared, "attachments.json"), "utf8")),
+			imported: media,
+			mcp,
+			dryRun,
+			log,
+		});
+		await writeFile(join(prepared, "local-media.json"), `${JSON.stringify(r, null, 2)}\n`);
+		await writeFile(join(prepared, "media-merged.json"), `${JSON.stringify({ imported: [...media, ...r.uploaded] }, null, 2)}\n`);
+		console.log(`Uploaded ${r.uploaded.length}, already imported ${r.alreadyImported}, missing ${r.missing.length}. Use ${join(prepared, "media-merged.json")} as --media for the next passes.`);
+		for (const m of r.missing.slice(0, 20)) console.log(`  - ${m.url}: ${m.reason}`);
+		if (r.missing.length) process.exitCode = 1;
+	} else if (command === "fix-media") {
 		const { legacyHosts } = JSON.parse(await readFile(join(prepared, "preflight.json"), "utf8"));
-		const result = await fixMedia({ legacyHosts, media, mcp, dryRun, log, fetchMissing: args.includes("--fetch-missing") });
+		const result = await fixMedia({ legacyHosts, media, mcp, dryRun, log, fetchMissing: args.includes("--fetch-missing"), uploadsDir: option("--uploads") });
 		await writeFile(join(prepared, "fix-media.json"), `${JSON.stringify(result, null, 2)}\n`);
 		const rewritten = result.entries.reduce((n, o) => n + o.rewritten, 0);
 		const unresolved = [...new Set(result.entries.flatMap((o) => o.unresolved))];

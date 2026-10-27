@@ -2,8 +2,18 @@ export { createBaselineRevisions, needsBaseline, pickUnchangedField, type Baseli
 export { buildBlocks, detectProvider } from "./blocks.ts";
 export { goLiveCheck, type GoLiveIssue, type GoLiveReport } from "./check.ts";
 export { importWxr, type ImportOptions, type ImportSummary } from "./import-wxr.ts";
+export {
+	contentTypeFor,
+	localPathFor,
+	uploadBytes,
+	uploadFile,
+	uploadLocalMedia,
+	uploadsRelativePath,
+	type AttachmentRef,
+	type LocalMediaReport,
+} from "./local-media.ts";
 export { migrate, type MigrateOptions, type MigrateReport, type StepResult } from "./pipeline.ts";
-export { describePrepared, prepareExport, writePrepared, type Preflight, type PreparedExport } from "./prepare.ts";
+export { describePrepared, prepareExport, readAttachments, writePrepared, type Preflight, type PreparedExport } from "./prepare.ts";
 export {
 	fixMediaMetadata,
 	planMediaUpdate,

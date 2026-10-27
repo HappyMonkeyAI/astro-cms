@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
+import { createPluginRuntimeTestHost, createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
 
-import { scanData, summarise } from "../src/scan";
+import { isNoWorse, scanData, summarise } from "../src/scan";
 
 let host: PluginTestHost | undefined;
 
@@ -38,6 +38,19 @@ describe("scanData", () => {
 	});
 });
 
+describe("isNoWorse", () => {
+	const r = (shortcodes: Record<string, number>, legacyUrls: number) => ({ shortcodes, legacyUrls, sampleUrls: [] });
+	it("accepts fewer or equal leftovers of kinds the live version already has", () => {
+		expect(isNoWorse(r({ "contact-form-7": 1 }, 0), r({ "contact-form-7": 1 }, 14))).toBe(true);
+		expect(isNoWorse(r({}, 0), r({ gallery: 2 }, 1))).toBe(true);
+	});
+	it("rejects new kinds and increases", () => {
+		expect(isNoWorse(r({ gallery: 1 }, 0), r({ "contact-form-7": 1 }, 5))).toBe(false);
+		expect(isNoWorse(r({ "contact-form-7": 2 }, 0), r({ "contact-form-7": 1 }, 5))).toBe(false);
+		expect(isNoWorse(r({}, 6), r({}, 5))).toBe(false);
+	});
+});
+
 describe("publish policy", () => {
 	it("rejects entries with leftovers and logs the origin", async () => {
 		host = await createPluginTestHost();
@@ -63,6 +76,50 @@ describe("publish policy", () => {
 			content: { id: "p2", slug: "clean", data: { title: "Clean", content: [block("All good")] } },
 		});
 		expect(decision ?? undefined).toBeUndefined();
+	});
+});
+
+describe("publish policy on real content (runtime host)", () => {
+	it("lets a fix go live on a published entry that keeps an unrelated leftover, never a worse version", async () => {
+		const runtime = await createPluginRuntimeTestHost();
+		try {
+			await runtime.fixtures.collection({
+				slug: "pages",
+				label: "Pages",
+				fields: [
+					{ slug: "title", label: "Title", type: "string" },
+					{ slug: "body", label: "Body", type: "text" },
+				],
+			});
+			await runtime.fixtures.plugin.setting("legacyHosts", ["old.example.com"]);
+			const home = await runtime.fixtures.content("pages", {
+				slug: "home",
+				status: "published",
+				data: { title: "Home", body: "[contact-form-7 id=1] https://old.example.com/a.jpg https://old.example.com/b.jpg" },
+			});
+			const draft = await runtime.fixtures.content("pages", { slug: "draft", status: "draft", data: { title: "Draft", body: "[contact-form-7 id=2]" } });
+			const attempt = async (id: string, body: string) => {
+				await runtime.actions.content.update("pages", id, { data: { body } });
+				const result = await runtime.actions.content.publish("pages", id);
+				return result.success ? "published" : result.error.code;
+			};
+
+			// Legacy URLs fixed, form still there: no worse than live
+			expect(await attempt(home.id, "[contact-form-7 id=1] /media/a.jpg /media/b.jpg")).toBe("published");
+			expect((await runtime.inspect.content.get("pages", home.id))!.data.body).toBe("[contact-form-7 id=1] /media/a.jpg /media/b.jpg");
+			// A new kind of leftover, or more of one, is refused
+			expect(await attempt(home.id, "[contact-form-7 id=1] [gallery]")).not.toBe("published");
+			expect(await attempt(home.id, "[contact-form-7 id=1] [contact-form-7 id=3]")).not.toBe("published");
+			// Never published: stays blocked
+			expect(await attempt(draft.id, "[contact-form-7 id=2]")).not.toBe("published");
+
+			const log = await runtime.inspect.storage.list<{ decision: string; reason: string | null }>("publish_log");
+			const decisions = log.map((e) => e.data.decision).sort();
+			expect(decisions).toEqual(["allowed", "rejected", "rejected", "rejected"]);
+			expect(log.find((e) => e.data.decision === "allowed")!.data.reason).toContain("no worse than the live version");
+		} finally {
+			await runtime.dispose();
+		}
 	});
 });
 

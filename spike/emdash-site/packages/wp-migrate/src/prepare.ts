@@ -7,12 +7,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { findLegacyHosts } from "./legacy-hosts.ts";
+import type { AttachmentRef } from "./local-media.ts";
 import { readAttachmentMetadata, type AttachmentMetadata } from "./media-metadata.ts";
 import { readMenus, type MenuSpec } from "./menus.ts";
 import { readPermalinks, type Permalink } from "./permalinks.ts";
 import { protectContent, type ProtectedItem } from "./protect.ts";
 import { extractShortcodes, type ShortcodeEntry } from "./shortcodes.ts";
 import { decodeSlugs, type DecodedSlug } from "./slugs.ts";
+import { getField, readItems } from "./wxr.ts";
 
 export interface Preflight {
 	source: string;
@@ -30,6 +32,15 @@ export interface PreparedExport {
 	permalinks: Permalink[];
 	menus: MenuSpec[];
 	mediaMetadata: AttachmentMetadata[];
+	/** Every attachment's original URL, for uploading from a local uploads folder */
+	attachments: AttachmentRef[];
+}
+
+export function readAttachments(xml: string): AttachmentRef[] {
+	return readItems(xml)
+		.filter(({ raw }) => getField(raw, "wp:post_type") === "attachment")
+		.map(({ raw }) => ({ wpId: Number(getField(raw, "wp:post_id")), url: getField(raw, "wp:attachment_url") }))
+		.filter((a) => a.wpId && a.url);
 }
 
 export function prepareExport(source: string, name: string): PreparedExport {
@@ -49,6 +60,7 @@ export function prepareExport(source: string, name: string): PreparedExport {
 		permalinks: readPermalinks(source),
 		menus: readMenus(source),
 		mediaMetadata: readAttachmentMetadata(source),
+		attachments: readAttachments(source),
 	};
 }
 
@@ -80,5 +92,6 @@ export async function writePrepared(outDir: string, stem: string, prepared: Prep
 	await write("permalinks.json", prepared.permalinks);
 	await write("menus.json", prepared.menus);
 	await write("media-metadata.json", prepared.mediaMetadata);
+	await write("attachments.json", prepared.attachments);
 	return preparedPath;
 }

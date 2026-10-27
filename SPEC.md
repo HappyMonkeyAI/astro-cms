@@ -97,7 +97,8 @@ Wraps the EmDash WXR import API (the spike's `wp-import.mjs`), then runs our fix
 | Menus | Not imported | Rebuild from `nav_menu_item`. **Done (2026-10-27):** 5/5 menus, 70/70 items, nesting kept. Note: the blog template renders top-level menu items only, so client themes need dropdown rendering |
 | Baseline revision | First agent edit to imported content can't be undone (F15) | Create a revision of every imported entry. **Done (2026-10-27):** 60 → 0 entries without history; undo via `revision_restore` verified |
 | Media metadata | Alt text and captions dropped (F15) | Restore from the export, filling empty fields only. **Done:** alt text 28/37 (all the export had), captions 21 |
-| Final gate | | `migration-guard` scan must report 0 issues before the site goes live. **Done (2026-10-27):** `wp-migrate check`, also the last step of `wp-migrate migrate` (one command, 72 s on the test data). Proven to fail on a planted leftover |
+| Media without the old host | Old site offline, local or firewalled (F23) | **Done:** `--uploads <wp-content/uploads copy>` |
+| Final gate | | `migration-guard` scan must report 0 issues before the site goes live. The publish gate allows "no worse than live" fixes on published entries (migration-guard 0.2.0, F23). **Done (2026-10-27):** `wp-migrate check`, also the last step of `wp-migrate migrate` (one command, 72 s on the test data). Proven to fail on a planted leftover |
 
 **Out of v0.1:** comments, `<!--more-->`/`<!--nextpage-->`, sticky posts and author byline de-duplication. These are listed in the report as manual follow-ups.
 

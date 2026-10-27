@@ -63,6 +63,16 @@ export function hasIssues(result: ScanResult): boolean {
 	return result.legacyUrls > 0 || Object.keys(result.shortcodes).length > 0;
 }
 
+/**
+ * True when `next` has no kind of leftover that `live` lacks and no more of any kind.
+ * Lets a fix go live on a page that still has an unrelated leftover (e.g. legacy URLs
+ * rewritten on a page that keeps a contact-form shortcode), without ever making it worse.
+ */
+export function isNoWorse(next: ScanResult, live: ScanResult): boolean {
+	if (next.legacyUrls > live.legacyUrls) return false;
+	return Object.entries(next.shortcodes).every(([name, count]) => count <= (live.shortcodes[name] ?? 0));
+}
+
 /** One-line, plain-text summary (publication policy reasons must be ≤ 500 chars). */
 export function summarise(result: ScanResult): string {
 	const parts = Object.entries(result.shortcodes).map(([name, n]) => `${n}× [${name}]`);

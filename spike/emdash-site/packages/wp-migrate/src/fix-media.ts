@@ -4,6 +4,7 @@
  */
 
 import { listCollections, listEntryIds, updateEntry } from "./entries.ts";
+import { localPathFor, uploadBytes, uploadFile } from "./local-media.ts";
 import type { McpClient } from "./mcp-client.ts";
 import { createMediaResolver, type ImportedMedia } from "./media.ts";
 import { legacyUrlPattern } from "./legacy-hosts.ts";
@@ -15,6 +16,8 @@ export interface FixMediaOptions {
 	mcp: McpClient;
 	/** Download legacy files that aren't in the media library (e.g. linked PDFs not attached in WordPress) and upload them */
 	fetchMissing?: boolean;
+	/** Local copy of wp-content/uploads: missing files are taken from here first */
+	uploadsDir?: string;
 	dryRun?: boolean;
 	log?: (line: string) => void;
 }
@@ -47,7 +50,7 @@ export async function fixMedia(
 
 	const media = [...options.media];
 	const fetched: FetchedFile[] = [];
-	if (options.fetchMissing && !dryRun) {
+	if ((options.fetchMissing || options.uploadsDir) && !dryRun) {
 		// Find legacy file URLs nothing resolves, fetch each once, and add it to the library
 		const probe = { legacyUrl, resolve: createMediaResolver(media) };
 		const missing = new Set<string>();
@@ -61,7 +64,9 @@ export async function fixMedia(
 			}
 		}
 		for (const url of missing) {
-			const result = await fetchAndUpload(mcp, url);
+			const local = options.uploadsDir ? localPathFor(options.uploadsDir, url) : undefined;
+			if (!local && !options.fetchMissing) continue;
+			const result = local ? await uploadLocal(mcp, url, local) : await fetchAndUpload(mcp, url);
 			fetched.push(result);
 			log(result.mediaId ? `fetched ${url}` : `could not fetch ${url}: ${result.error}`);
 			if (result.mediaId) media.push({ wpId: 0, originalUrl: url, newUrl: result.newUrl!, mediaId: result.mediaId });
@@ -110,16 +115,18 @@ async function fetchAndUpload(mcp: McpClient, url: string): Promise<FetchedFile 
 		if (declared > MAX_FETCH_BYTES) return { url, error: `larger than ${MAX_FETCH_BYTES} bytes` };
 		const bytes = Buffer.from(await response.arrayBuffer());
 		if (bytes.length > MAX_FETCH_BYTES) return { url, error: `larger than ${MAX_FETCH_BYTES} bytes` };
-		const uploaded = await mcp.call("media_upload", {
-			filename: decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "file"),
-			base64: bytes.toString("base64"),
-			contentType: (response.headers.get("content-type") ?? "application/octet-stream").split(";")[0].trim(),
-		});
-		const item = uploaded?.item ?? uploaded;
-		if (!item?.id) return { url, error: "media_upload returned no id" };
-		return { url, mediaId: item.id, newUrl: item.url ?? `/_emdash/api/media/file/${item.storageKey}` };
+		const contentType = (response.headers.get("content-type") ?? "application/octet-stream").split(";")[0].trim();
+		return { url, ...(await uploadBytes(mcp, bytes, decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "file"), contentType)) };
 	} catch (error) {
 		return { url, error: error instanceof Error ? error.message : String(error) };
+	}
+}
+
+async function uploadLocal(mcp: McpClient, url: string, path: string): Promise<FetchedFile & { newUrl?: string }> {
+	try {
+		return { url, ...(await uploadFile(mcp, path, path.split(/[\\/]/).pop()!)) };
+	} catch (error) {
+		return { url, error: (error as NodeJS.ErrnoException)?.code === "ENOENT" ? "not in the uploads folder" : error instanceof Error ? error.message : String(error) };
 	}
 }
 

@@ -19,6 +19,8 @@ import { fixMenus } from "./fix-menus.ts";
 import { fixRedirects } from "./fix-redirects.ts";
 import { fixShortcodes } from "./fix-shortcodes.ts";
 import { importWxr } from "./import-wxr.ts";
+import { uploadLocalMedia } from "./local-media.ts";
+import type { ImportedMedia } from "./media.ts";
 import { connectMcp } from "./mcp-client.ts";
 import { fixMediaMetadata } from "./media-metadata.ts";
 import { describePrepared, prepareExport, writePrepared } from "./prepare.ts";
@@ -32,6 +34,8 @@ export interface MigrateOptions {
 	/** EmDash menu name → WordPress menu slug */
 	assign?: Record<string, string>;
 	fetchMissing?: boolean;
+	/** Local copy of wp-content/uploads, for media the importer couldn't download */
+	uploadsDir?: string;
 	log?: (line: string) => void;
 }
 
@@ -97,15 +101,32 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 		if (imported?.media) {
 			const { media: m } = imported;
 			await step("media import", async () => ({
-				ok: m.failed === 0,
-				summary: `${m.imported} imported, ${m.failed} failed${m.failed ? " (see import/4-media.json; references to them stay on the old host)" : ""}`,
+				// With an uploads folder, the "local media" step decides whether media is complete
+				ok: m.failed === 0 || Boolean(options.uploadsDir),
+				summary:
+					`${m.imported} downloaded, ${m.failed} failed` +
+					(m.failed ? (options.uploadsDir ? " (taking them from the uploads folder next)" : " (references to them stay on the old host; use --uploads)") : ""),
 			}));
 		}
 
-		const media = mediaReport ? JSON.parse(await readFile(mediaReport, "utf8")).imported ?? [] : [];
+		const media: ImportedMedia[] = mediaReport ? JSON.parse(await readFile(mediaReport, "utf8")).imported ?? [] : [];
 		const mcp = await connectMcp(base, token);
 		const rest = connectRest(base, token);
 		const save = (file: string, data: unknown) => writeFile(join(outDir, file), `${JSON.stringify(data, null, 2)}\n`);
+
+		if (options.uploadsDir) {
+			await step("local media", async () => {
+				const r = await uploadLocalMedia({ uploadsDir: options.uploadsDir!, attachments: prepared.attachments, imported: media, mcp });
+				media.push(...r.uploaded);
+				await save("local-media.json", r);
+				// Later passes (and re-runs of single commands) read this merged list
+				await save("media-merged.json", { imported: media });
+				return {
+					ok: r.missing.length === 0,
+					summary: `${r.uploaded.length} uploaded from ${options.uploadsDir}, ${r.alreadyImported} already imported, ${r.missing.length} missing`,
+				};
+			});
+		}
 
 		await step("shortcodes", async () => {
 			const r = await fixShortcodes({ entries: prepared.shortcodes, media, mcp });
@@ -115,7 +136,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			return { ok: !stuck && !failed, summary: `${r.reduce((n, o) => n + o.replaced, 0)} replaced in ${r.length} entries, ${stuck} stuck, ${failed} failed` };
 		});
 		await step("media URLs", async () => {
-			const r = await fixMedia({ legacyHosts: prepared.preflight.legacyHosts, media, mcp, fetchMissing: options.fetchMissing });
+			const r = await fixMedia({ legacyHosts: prepared.preflight.legacyHosts, media, mcp, fetchMissing: options.fetchMissing, uploadsDir: options.uploadsDir });
 			await save("fix-media.json", r);
 			const failed = r.entries.filter((o) => o.error).length;
 			const unresolved = new Set(r.entries.flatMap((o) => o.unresolved)).size;

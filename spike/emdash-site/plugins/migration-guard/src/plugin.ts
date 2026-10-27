@@ -1,7 +1,7 @@
 import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
 import { z } from "zod";
 
-import { hasIssues, normaliseHosts, scanData, summarise, type ScanResult } from "./scan";
+import { hasIssues, isNoWorse, normaliseHosts, scanData, summarise, type ScanResult } from "./scan";
 
 /**
  * migration-guard: finds WordPress migration leftovers (raw shortcodes, legacy-host URLs),
@@ -209,11 +209,22 @@ const plugin: SandboxedPlugin = {
 			// origin is { source, pluginId? } at runtime (the docs show a bare string)
 			const origin =
 				event.origin.source === "plugin" ? `plugin:${event.origin.pluginId}` : event.origin.source;
-			const result = scanData(content.data, await getLegacyHosts(ctx as Ctx));
-			const rejected = hasIssues(result);
-			const reason = rejected
-				? `Migration leftovers must be fixed before publishing: ${summarise(result)}.`.slice(0, 500)
-				: null;
+			const hosts = await getLegacyHosts(ctx as Ctx);
+			const result = scanData(content.data, hosts);
+			let rejected = hasIssues(result);
+			let reason = rejected ? `Migration leftovers must be fixed before publishing: ${summarise(result)}.`.slice(0, 500) : null;
+			if (rejected) {
+				// Allow a fix on an already-published entry that keeps an unrelated leftover, as long
+				// as nothing gets worse. Never-published entries stay blocked.
+				const id = asString(content.id);
+				// A missing or unreadable live version means "not live": stay blocked
+				const live = id ? await ctx.content!.get(event.collection, id).catch(() => null) : null;
+				const liveResult = live?.status === "published" ? scanData(live.data, hosts) : null;
+				if (liveResult && isNoWorse(result, liveResult)) {
+					rejected = false;
+					reason = `Allowed: no worse than the live version (now ${summarise(result)}; live ${summarise(liveResult)}).`.slice(0, 500);
+				}
+			}
 			const record: PublishLogRecord = {
 				at: new Date().toISOString(),
 				collection: event.collection,

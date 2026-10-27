@@ -203,7 +203,11 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - 11 redirects and 3 menus (+ `primary`) were created.
   - **Old host offline:** 27 of 29 images return 404 from the demo server, so legacy-host URLs stay on 9 entries, and the go-live check lists them.
     - The pipeline now reports media failures as their own step and carries on (it previously stopped after import).
-    - Needs: a `--uploads <dir>` option that uploads from a copy of `wp-content/uploads` (also the answer for sites behind a firewall or running locally, where the SSRF guard blocks private hosts; upstream #3815).
+    - **Built:** `wp-migrate --uploads <dir>` uploads from a copy of `wp-content/uploads`. This is also the answer for sites behind a firewall or running locally, where the SSRF guard blocks private hosts (upstream #3815). With a stand-in folder, all 27 images were uploaded and relinked.
+  - **The publish gate blocked fixes** (found with `--uploads`). Home's legacy URLs were rewritten, but re-publishing was refused because Home still had a Contact Form 7 shortcode, so the live page kept 14 old-host URLs.
+    - **migration-guard 0.2.0** now allows a publish that is **no worse than the live version**: no new kind of leftover and no more of any kind, and only for entries that are already published (never-published entries stay fully blocked).
+    - Every decision is still logged, with the reason.
+    - Tested on the runtime test host through EmDash's real publish path.
   - **Contact Form 7** shortcodes on Home and FAQ were flagged by migration-guard, which also refused to re-publish those pages during the baseline pass.
     - This is correct behaviour, now reported as "blocked", not "failed".
     - Forms need our planned `forms` plugin (SPEC §5.6) or a manual decision.
