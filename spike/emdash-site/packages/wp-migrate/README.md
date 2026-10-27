@@ -7,7 +7,10 @@ node src/cli.ts preflight export.xml              # report only; changes nothing
 node src/cli.ts prepare export.xml --out ./out    # writes out/export.prepared.xml, preflight.json, shortcodes.json
 # Import out/export.prepared.xml with EmDash, including media (e.g. spike/scripts/wp-import.mjs --out ./out/import)
 EMDASH_TOKEN=… node src/cli.ts fix-shortcodes --prepared ./out --media ./out/import/4-media.json --base https://site
+EMDASH_TOKEN=… node src/cli.ts fix-media --prepared ./out --media ./out/import/4-media.json --base https://site --fetch-missing
 ```
+
+The legacy hosts come from the export (`preflight.json`): the blog URL, the channel link and every attachment host. `wp:base_site_url` is excluded because on multisite and WordPress.com it's the network root.
 
 Import `*.prepared.xml`, **never the original export**. `fix-shortcodes` needs an admin-scope API token. It writes through EmDash's MCP tools, so every change goes through the usual `_rev` check and appears in the revision history.
 
@@ -17,7 +20,8 @@ Import `*.prepared.xml`, **never the original export**. `fix-shortcodes` needs a
 |---|---|---|
 | **Protected content.** Password-protected and private posts and pages become `draft`, so nothing WordPress kept from the public is ever published, even briefly. Listed in `preflight.json` for an editor to review | Before import | ✅ Done (spike F13 🔴). E2E: imported as draft, public URL 404, 55/58 other posts unchanged |
 | **Shortcodes** (`[caption]`, `[gallery]`, `[audio]`, `[video]`, `[embed]`). See below | Before and after import | ✅ Done. E2E: 25/25 converted in 8 entries, 0 left in the database or on pages, 8/8 still published with their original dates, media served locally |
-| Media URLs incl. size variants; media metadata | After import | Planned |
+| **Media URLs.** Every legacy media URL or reference in any field of any collection is pointed at the media library: image/gallery `asset` references (including leftover WP attachment-ID `_ref`s), size variants (`-150x150`), `?w=` resized URLs, cover backgrounds, file and embed URLs, embed HTML, image links and text links. `--fetch-missing` also downloads linked files the export didn't attach (on legacy hosts only, ≤ 50 MB) and uploads them. It then runs `media_usage_repair` | After import | ✅ Done. E2E: 169 → 0 legacy references (160 rewritten in 15 entries, 1 linked PDF fetched), 0 on public pages, all still published |
+| Media metadata (alt, captions, titles from attachments) | After import | Planned |
 | Redirects and page hierarchy | After import | Planned |
 | Menus | After import | Planned |
 | Baseline revision per entry | After import | Planned |

@@ -59,7 +59,7 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 | `@astro-cms/auth-password` | auth provider | Password setup, login, invite acceptance; later email-code 2FA and password reset | Built, 7 tests (F9, F20) |
 | `@astro-cms/email-smtp` | native plugin | `email:deliver` via nodemailer, `SMTP_URL` read at send time | Built (F20) |
 | `@astro-cms/pg-search` | native plugin | Postgres full-text search (tsvector + pg_trgm) to replace SQLite-only FTS | Not started (F2) |
-| `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | Protected-content and shortcode passes done, 12 tests |
+| `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | Protected-content, shortcode and media URL passes done, 17 tests |
 | `migration-guard` | sandboxed plugin | Scan for WP leftovers, block publishing while they remain, issues admin page and MCP tools | Built, 6 tests (F16) |
 | `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Not started (F15) |
 | `redirects` | sandboxed plugin | Redirect table, admin page, MCP tools, 301s from old WP permalinks | Not started (F13) |
@@ -89,7 +89,7 @@ Wraps the EmDash WXR import API (the spike's `wp-import.mjs`), then runs our fix
 | Preflight | Report everything below *before* importing; keep the WXR for later passes | Parse the WXR |
 | Protected content | Password-protected posts become public (F13 🔴) | Import as **draft** and list them in the report. Never publish them automatically. **Done (2026-10-27)** in `packages/wp-migrate`, covering private posts too: verified as draft with a public 404 on a fresh site |
 | Shortcodes | `[caption]`, `[gallery]`, `[audio]`, `[video]`, `[embed]` left raw | Convert to Portable Text blocks using WXR attachment data; report unknown shortcodes. **Done (2026-10-27):** markers before import, real blocks after import over MCP. E2E: 25/25 converted, original publish dates kept |
-| Media URLs | Size variants and gallery/link URLs still point at the old host | Map `-WxH` variants and attachment URLs to the media library; rewrite in place |
+| Media URLs | Size variants and gallery/link URLs still point at the old host | Map `-WxH` variants and attachment URLs to the media library; rewrite in place. **Done (2026-10-27):** generic walk over all fields, plus `--fetch-missing` for linked files the export didn't attach. E2E: 169 → 0 legacy references |
 | Media metadata | Alt text, captions, titles and attachment parents dropped (F15) | Restore from the WXR into the media items |
 | Hierarchy and URLs | Child pages flattened, permalinks changed | Keep the WP path as each entry's slug path, or generate redirects |
 | Redirects | Old permalinks 404 | Write every old URL → new URL into `redirects` |

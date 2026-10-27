@@ -9,6 +9,9 @@
  *   wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]
  *                                                      replace shortcode markers with real blocks over MCP
  *                                                      (token: EMDASH_TOKEN, admin scope)
+ *   wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]
+ *                                                      point every legacy media URL/reference at the media library;
+ *                                                      --fetch-missing also downloads linked files the export didn't attach
  *
  * Import the prepared file, never the original.
  */
@@ -16,7 +19,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
+import { fixMedia } from "./fix-media.ts";
 import { fixShortcodes } from "./fix-shortcodes.ts";
+import { findLegacyHosts } from "./legacy-hosts.ts";
 import { connectMcp } from "./mcp-client.ts";
 import { protectContent } from "./protect.ts";
 import { extractShortcodes, type ShortcodeEntry } from "./shortcodes.ts";
@@ -34,6 +39,7 @@ function usage(): never {
 			"Usage: wp-migrate preflight <export.xml>",
 			"       wp-migrate prepare <export.xml> --out <dir>",
 			"       wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
+			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
 		].join("\n"),
 	);
 	process.exit(2);
@@ -56,6 +62,7 @@ if (command === "preflight" || command === "prepare") {
 		converted.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.data!.kind]: (acc[e.data!.kind] ?? 0) + 1 }), {}),
 	);
 	console.log(`  ${converted.length} shortcode(s) will be converted: ${byKind.map(([k, n]) => `${n} ${k}`).join(", ") || "none"}`);
+	console.log(`  legacy hosts: ${findLegacyHosts(source).join(", ") || "none found"}`);
 	for (const p of problems) console.log(`    ! left as text in /${p.slug}: ${p.problem} — ${p.raw.slice(0, 80)}`);
 
 	if (command === "prepare") {
@@ -65,12 +72,17 @@ if (command === "preflight" || command === "prepare") {
 		const stem = basename(positional).replace(/\.xml$/i, "");
 		const preparedPath = resolve(join(outDir, `${stem}.prepared.xml`));
 		await writeFile(preparedPath, shortcodeResult.xml);
-		const report = { source: basename(positional), generatedAt: new Date().toISOString(), protected: protectedResult.protected };
+		const report = {
+			source: basename(positional),
+			generatedAt: new Date().toISOString(),
+			legacyHosts: findLegacyHosts(source),
+			protected: protectedResult.protected,
+		};
 		await writeFile(join(outDir, "preflight.json"), `${JSON.stringify(report, null, 2)}\n`);
 		await writeFile(join(outDir, "shortcodes.json"), `${JSON.stringify(shortcodeResult.entries, null, 2)}\n`);
 		console.log(`Wrote ${preparedPath}, preflight.json and shortcodes.json. Import the prepared file, not the original.`);
 	}
-} else if (command === "fix-shortcodes") {
+} else if (command === "fix-shortcodes" || command === "fix-media") {
 	const prepared = option("--prepared");
 	const mediaPath = option("--media");
 	const base = option("--base");
@@ -80,22 +92,35 @@ if (command === "preflight" || command === "prepare") {
 		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
 		process.exit(2);
 	}
-	const entries: ShortcodeEntry[] = JSON.parse(await readFile(join(prepared, "shortcodes.json"), "utf8"));
-	const mediaReport = JSON.parse(await readFile(mediaPath, "utf8"));
-	const outcomes = await fixShortcodes({
-		entries,
-		media: mediaReport.imported ?? [],
-		mcp: await connectMcp(base, token),
-		dryRun: args.includes("--dry-run"),
-		log: (line) => console.log(`  ${line}`),
-	});
-	await writeFile(join(prepared, "fix-shortcodes.json"), `${JSON.stringify(outcomes, null, 2)}\n`);
-	const replaced = outcomes.reduce((n, o) => n + o.replaced, 0);
-	const stuck = outcomes.flatMap((o) => o.stuck);
-	const external = outcomes.flatMap((o) => o.externalMedia);
-	const failed = outcomes.filter((o) => o.error);
-	console.log(`Replaced ${replaced} shortcode(s) in ${outcomes.length} entries; stuck ${stuck.length}; external media ${external.length}; failed ${failed.length}`);
-	if (stuck.length || failed.length) process.exitCode = 1;
+	const media = JSON.parse(await readFile(mediaPath, "utf8")).imported ?? [];
+	const mcp = await connectMcp(base, token);
+	const dryRun = args.includes("--dry-run");
+	const log = (line: string) => console.log(`  ${line}`);
+
+	if (command === "fix-media") {
+		const { legacyHosts } = JSON.parse(await readFile(join(prepared, "preflight.json"), "utf8"));
+		const result = await fixMedia({ legacyHosts, media, mcp, dryRun, log, fetchMissing: args.includes("--fetch-missing") });
+		await writeFile(join(prepared, "fix-media.json"), `${JSON.stringify(result, null, 2)}\n`);
+		const rewritten = result.entries.reduce((n, o) => n + o.rewritten, 0);
+		const unresolved = [...new Set(result.entries.flatMap((o) => o.unresolved))];
+		const failed = result.entries.filter((o) => o.error);
+		console.log(`Rewrote ${rewritten} media reference(s) in ${result.entries.filter((o) => o.rewritten).length} entries; failed ${failed.length}`);
+		if (unresolved.length) {
+			console.log(`${unresolved.length} legacy URL(s) not in the media library (left unchanged):`);
+			for (const url of unresolved.slice(0, 20)) console.log(`  - ${url}`);
+		}
+		if (failed.length) process.exitCode = 1;
+	} else {
+		const entries: ShortcodeEntry[] = JSON.parse(await readFile(join(prepared, "shortcodes.json"), "utf8"));
+		const outcomes = await fixShortcodes({ entries, media, mcp, dryRun, log });
+		await writeFile(join(prepared, "fix-shortcodes.json"), `${JSON.stringify(outcomes, null, 2)}\n`);
+		const replaced = outcomes.reduce((n, o) => n + o.replaced, 0);
+		const stuck = outcomes.flatMap((o) => o.stuck);
+		const external = outcomes.flatMap((o) => o.externalMedia);
+		const failed = outcomes.filter((o) => o.error);
+		console.log(`Replaced ${replaced} shortcode(s) in ${outcomes.length} entries; stuck ${stuck.length}; external media ${external.length}; failed ${failed.length}`);
+		if (stuck.length || failed.length) process.exitCode = 1;
+	}
 } else {
 	usage();
 }

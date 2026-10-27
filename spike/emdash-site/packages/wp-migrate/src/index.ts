@@ -1,5 +1,8 @@
 export { buildBlocks, detectProvider } from "./blocks.ts";
+export { fixMedia, type FixMediaOptions, type MediaOutcome } from "./fix-media.ts";
 export { fixShortcodes, type EntryOutcome, type FixShortcodesOptions } from "./fix-shortcodes.ts";
+export { findLegacyHosts, legacyUrlPattern } from "./legacy-hosts.ts";
+export { rewriteMediaRefs, type RewriteOptions, type RewriteResult } from "./rewrite-media.ts";
 export { connectMcp, type McpClient } from "./mcp-client.ts";
 export { createMediaResolver, type ImportedMedia, type ResolvedMedia } from "./media.ts";
 export { replaceMarkers, type MarkerResult, type PtBlock, type PtSpan } from "./portable-text.ts";
