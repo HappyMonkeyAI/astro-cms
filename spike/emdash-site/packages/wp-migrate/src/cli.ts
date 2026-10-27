@@ -18,6 +18,11 @@
  *   wp-migrate menus --prepared <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--dry-run]
  *                                                      one EmDash menu per WordPress menu; --assign fills a site menu
  *                                                      (theme locations aren't in the export)
+ *   wp-migrate media-metadata --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]
+ *                                                      restore alt text and captions (fills empty fields only)
+ *   wp-migrate baseline --base <site-url> [--prepared <dir>] [--dry-run]
+ *                                                      run last: give every entry without history a revision of its
+ *                                                      migrated state, so the first edit can be undone
  *
  * Import the prepared file, never the original.
  */
@@ -25,7 +30,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
+import { createBaselineRevisions } from "./baseline.ts";
 import { fixMedia } from "./fix-media.ts";
+import { fixMediaMetadata, readAttachmentMetadata } from "./media-metadata.ts";
 import { fixMenus } from "./fix-menus.ts";
 import { readMenus } from "./menus.ts";
 import { fixRedirects } from "./fix-redirects.ts";
@@ -54,6 +61,8 @@ function usage(): never {
 			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
 			"       wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]",
 			"       wp-migrate menus --prepared <dir> --base <site-url> [--assign <emdash-menu>=<wp-menu-slug>]... [--dry-run]",
+			"       wp-migrate media-metadata --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
+			"       wp-migrate baseline --base <site-url> [--prepared <dir>] [--dry-run]",
 		].join("\n"),
 	);
 	process.exit(2);
@@ -101,7 +110,39 @@ if (command === "preflight" || command === "prepare") {
 		await writeFile(join(outDir, "shortcodes.json"), `${JSON.stringify(shortcodeResult.entries, null, 2)}\n`);
 		await writeFile(join(outDir, "permalinks.json"), `${JSON.stringify(readPermalinks(source), null, 2)}\n`);
 		await writeFile(join(outDir, "menus.json"), `${JSON.stringify(menus, null, 2)}\n`);
+		await writeFile(join(outDir, "media-metadata.json"), `${JSON.stringify(readAttachmentMetadata(source), null, 2)}\n`);
 		console.log(`Wrote ${preparedPath} and the pass inputs (preflight, shortcodes, permalinks, menus). Import the prepared file, not the original.`);
+	}
+} else if (command === "media-metadata" || command === "baseline") {
+	const prepared = option("--prepared");
+	const base = option("--base");
+	const token = process.env.EMDASH_TOKEN;
+	if (!base || (command === "media-metadata" && (!prepared || !option("--media")))) usage();
+	if (!token) {
+		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
+		process.exit(2);
+	}
+	const mcp = await connectMcp(base, token);
+	const dryRun = args.includes("--dry-run");
+	const log = (line: string) => console.log(`  ${line}`);
+	if (command === "media-metadata") {
+		const report = await fixMediaMetadata({
+			metadata: JSON.parse(await readFile(join(prepared!, "media-metadata.json"), "utf8")),
+			media: JSON.parse(await readFile(option("--media")!, "utf8")).imported ?? [],
+			mcp,
+			dryRun,
+		});
+		await writeFile(join(prepared!, "media-metadata-report.json"), `${JSON.stringify(report, null, 2)}\n`);
+		console.log(
+			`Media metadata: ${report.updated} updated, ${report.skippedAlreadySet} already set, ${report.noMetadata} without metadata, ` +
+				`${report.missingAlt} still without alt text, ${report.errors.length} failed`,
+		);
+		if (report.errors.length) process.exitCode = 1;
+	} else {
+		const report = await createBaselineRevisions({ mcp, dryRun, log });
+		if (prepared) await writeFile(join(prepared, "baseline.json"), `${JSON.stringify(report, null, 2)}\n`);
+		for (const f of report.failed.slice(0, 10)) console.log(`  ! ${f.collection}/${f.slug}: ${f.error}`);
+		if (report.failed.length) process.exitCode = 1;
 	}
 } else if (command === "menus") {
 	const prepared = option("--prepared");

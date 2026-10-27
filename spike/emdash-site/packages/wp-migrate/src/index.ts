@@ -1,4 +1,14 @@
+export { createBaselineRevisions, needsBaseline, pickUnchangedField, type BaselineOutcome, type BaselineReport } from "./baseline.ts";
 export { buildBlocks, detectProvider } from "./blocks.ts";
+export {
+	fixMediaMetadata,
+	planMediaUpdate,
+	readAttachmentMetadata,
+	type AttachmentMetadata,
+	type MediaMetadataOptions,
+	type MediaMetadataReport,
+	type MediaUpdate,
+} from "./media-metadata.ts";
 export { fixMedia, type FixMediaOptions, type MediaOutcome } from "./fix-media.ts";
 export { listCollections, listEntries, listEntryIds, updateEntry, type CollectionInfo } from "./entries.ts";
 export { fixMenus, toMenuName, type FixMenusOptions, type MenuOutcome } from "./fix-menus.ts";

@@ -132,18 +132,18 @@ WordPress stores non-ASCII slugs percent-encoded in WXR exports. The WordPress t
 
 The importer stores this text verbatim, so `ec_pages.slug` holds `%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2` literally. Astro decodes the request path before the lookup, so the stored slug never matches. After import, `/pages/%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2` returns 404, and so do the upper-case-encoded form, a double-encoded form and the decoded form `/pages/επίπεδο-2`. The page exists in the database but cannot be reached at any URL.
 
-Pages created in the admin with Unicode slugs work, so the problem is confined to the import path. Category and tag nicenames in the export are encoded the same way. We decode those too, but we have not separately confirmed that the taxonomy URLs fail in the same way.
+EmDash itself serves Unicode slugs: renaming the imported page's slug to the decoded form made it reachable (see the steps below), so the problem is confined to the import path. Category and tag nicenames in the export are encoded the same way. We decode those too, but we have not separately confirmed that the taxonomy URLs fail in the same way.
 
 ### Steps to reproduce
 
 1. Import the WordPress theme unit test data (it has a page with the slug `επίπεδο-2`), or edit the `wp:post_name` of any page in a WXR to the encoded form above.
 2. After the import, check `ec_pages.slug`. It holds the encoded text.
 3. Request `/pages/%ce%b5%cf%80%ce%af%cf%80%ce%b5%ce%b4%ce%bf-2`, the upper-case form `/pages/%CE%B5%CF%80%CE%AF%CF%80%CE%B5%CE%B4%CE%BF-2` and `/pages/επίπεδο-2`. All return 404.
-4. Rename the slug to `επίπεδο-3` through the admin or MCP `content_update`. `/pages/επίπεδο-3` and `/pages/%CE%B5%CF%80%CE%AF%CF%80%CE%B5%CE%B4%CE%BF-3` then both return 200.
+4. Rename the slug to `επίπεδο-3` with MCP `content_update` (`slug: "επίπεδο-3"`), then publish. `/pages/επίπεδο-3` and `/pages/%CE%B5%CF%80%CE%AF%CF%80%CE%B5%CE%B4%CE%BF-3` then both return 200.
 
 ### Suggested fix
 
-Decode `wp:post_name` during import, and the term nicenames (`wp:category_nicename`, `wp:tag_slug`, `wp:term_slug`, and `category/@nicename`) too, using `decodeURIComponent`. Fall back to the raw value if the escapes are not valid UTF-8. EmDash already serves Unicode slugs, as admin-created pages show, so decoding on import should be enough and no runtime change should be needed.
+Decode `wp:post_name` during import, and the term nicenames (`wp:category_nicename`, `wp:tag_slug`, `wp:term_slug`, and `category/@nicename`) too, using `decodeURIComponent`. Fall back to the raw value if the escapes are not valid UTF-8. EmDash already serves Unicode slugs (step 4 above), so decoding on import should be enough and no runtime change should be needed.
 
 ### Our workaround
 
@@ -191,7 +191,7 @@ EmDash core has a full redirect system. `/_emdash/api/redirects` supports create
 
 The MCP server (72 tools) has no redirect tools. An agent cannot list, create or fix a redirect, and it cannot read the 404 log to find broken links.
 
-This matters most after a migration. A WXR import creates no redirects (F13: 0 redirects created), so old permalinks return 404. The only route we found for fixing this is calling the REST API directly with an admin-scope token, which sits outside the MCP permission model.
+This matters most after a migration. A WXR import creates no redirects (0 after importing the WordPress theme unit test data), so old permalinks return 404. The only route we found for fixing this is calling the REST API directly with an admin-scope token, which sits outside the MCP permission model.
 
 ### Requested
 
