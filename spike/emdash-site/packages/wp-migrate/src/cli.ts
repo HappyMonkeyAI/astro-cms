@@ -2,6 +2,12 @@
 /**
  * wp-migrate: WordPress → EmDash migration around EmDash's own importer.
  *
+ *   wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--fetch-missing]
+ *                                                      everything below in order, then the go-live check; exit 0 = ready
+ *   wp-migrate check --prepared <dir> --base <site-url>
+ *                                                      go-live check: migration-guard scan + leftover markers = 0
+ *
+ *   The individual steps:
  *   wp-migrate preflight <export.xml>                  report what needs attention; changes nothing
  *   wp-migrate prepare   <export.xml> --out <dir>      write <dir>/<name>.prepared.xml to import, plus
  *                                                      preflight.json and shortcodes.json
@@ -27,23 +33,21 @@
  * Import the prepared file, never the original.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 
 import { createBaselineRevisions } from "./baseline.ts";
+import { goLiveCheck } from "./check.ts";
 import { fixMedia } from "./fix-media.ts";
-import { fixMediaMetadata, readAttachmentMetadata } from "./media-metadata.ts";
 import { fixMenus } from "./fix-menus.ts";
-import { readMenus } from "./menus.ts";
 import { fixRedirects } from "./fix-redirects.ts";
-import { readPermalinks } from "./permalinks.ts";
-import { connectRest } from "./rest-client.ts";
-import { decodeSlugs } from "./slugs.ts";
 import { fixShortcodes } from "./fix-shortcodes.ts";
-import { findLegacyHosts } from "./legacy-hosts.ts";
 import { connectMcp } from "./mcp-client.ts";
-import { protectContent } from "./protect.ts";
-import { extractShortcodes, type ShortcodeEntry } from "./shortcodes.ts";
+import { fixMediaMetadata } from "./media-metadata.ts";
+import { migrate } from "./pipeline.ts";
+import { describePrepared, prepareExport, writePrepared } from "./prepare.ts";
+import { connectRest } from "./rest-client.ts";
+import type { ShortcodeEntry } from "./shortcodes.ts";
 
 const [command, ...args] = process.argv.slice(2);
 const option = (name: string) => {
@@ -52,11 +56,25 @@ const option = (name: string) => {
 };
 const positional = args.find((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 
+/** Repeatable `--assign <emdash-menu>=<wp-menu-slug>` */
+function readAssign(): Record<string, string> {
+	const assign: Record<string, string> = {};
+	args.forEach((a, i) => {
+		if (a !== "--assign") return;
+		const [name, from] = (args[i + 1] ?? "").split("=");
+		if (!name || !from) usage();
+		assign[name] = from;
+	});
+	return assign;
+}
+
 function usage(): never {
 	console.error(
 		[
-			"Usage: wp-migrate preflight <export.xml>",
+			"Usage: wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--fetch-missing]",
+			"       wp-migrate preflight <export.xml>",
 			"       wp-migrate prepare <export.xml> --out <dir>",
+			"       wp-migrate check --prepared <dir> --base <site-url>",
 			"       wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
 			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
 			"       wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]",
@@ -70,49 +88,53 @@ function usage(): never {
 
 if (command === "preflight" || command === "prepare") {
 	if (!positional) usage();
-	const source = await readFile(positional, "utf8");
-	const protectedResult = protectContent(source);
-	const slugResult = decodeSlugs(protectedResult.xml);
-	const shortcodeResult = extractShortcodes(slugResult.xml);
-	const converted = shortcodeResult.entries.filter((e) => e.data);
-	const problems = shortcodeResult.entries.filter((e) => e.problem);
-
-	console.log(`${basename(positional)}:`);
-	console.log(`  ${protectedResult.protected.length} protected item(s) will be imported as drafts`);
-	for (const item of protectedResult.protected) {
-		console.log(`    - [${item.reason}] ${item.type} "${item.title}" (/${item.slug}, was ${item.originalStatus})`);
-	}
-	const byKind = Object.entries(
-		converted.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.data!.kind]: (acc[e.data!.kind] ?? 0) + 1 }), {}),
-	);
-	console.log(`  ${converted.length} shortcode(s) will be converted: ${byKind.map(([k, n]) => `${n} ${k}`).join(", ") || "none"}`);
-	console.log(`  ${slugResult.decoded.length} percent-encoded slug(s) will be decoded (EmDash can't serve them encoded)`);
-	const menus = readMenus(source);
-	console.log(`  ${menus.length} menu(s): ${menus.map((m) => `${m.slug} (${m.items.length})`).join(", ") || "none"}`);
-	console.log(`  legacy hosts: ${findLegacyHosts(source).join(", ") || "none found"}`);
-	for (const p of problems) console.log(`    ! left as text in /${p.slug}: ${p.problem} — ${p.raw.slice(0, 80)}`);
-
+	const prepared = prepareExport(await readFile(positional, "utf8"), basename(positional));
+	console.log(describePrepared(prepared).join("\n"));
 	if (command === "prepare") {
 		const outDir = option("--out");
 		if (!outDir) usage();
-		await mkdir(outDir, { recursive: true });
-		const stem = basename(positional).replace(/\.xml$/i, "");
-		const preparedPath = resolve(join(outDir, `${stem}.prepared.xml`));
-		await writeFile(preparedPath, shortcodeResult.xml);
-		const report = {
-			source: basename(positional),
-			generatedAt: new Date().toISOString(),
-			legacyHosts: findLegacyHosts(source),
-			protected: protectedResult.protected,
-			decodedSlugs: slugResult.decoded,
-		};
-		await writeFile(join(outDir, "preflight.json"), `${JSON.stringify(report, null, 2)}\n`);
-		await writeFile(join(outDir, "shortcodes.json"), `${JSON.stringify(shortcodeResult.entries, null, 2)}\n`);
-		await writeFile(join(outDir, "permalinks.json"), `${JSON.stringify(readPermalinks(source), null, 2)}\n`);
-		await writeFile(join(outDir, "menus.json"), `${JSON.stringify(menus, null, 2)}\n`);
-		await writeFile(join(outDir, "media-metadata.json"), `${JSON.stringify(readAttachmentMetadata(source), null, 2)}\n`);
-		console.log(`Wrote ${preparedPath} and the pass inputs (preflight, shortcodes, permalinks, menus). Import the prepared file, not the original.`);
+		const preparedPath = await writePrepared(outDir, basename(positional).replace(/\.xml$/i, ""), prepared);
+		console.log(`Wrote ${preparedPath} and the pass inputs. Import the prepared file, not the original.`);
 	}
+} else if (command === "migrate") {
+	const outDir = option("--out");
+	const base = option("--base");
+	const token = process.env.EMDASH_TOKEN;
+	if (!positional || !outDir || !base) usage();
+	if (!token) {
+		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
+		process.exit(2);
+	}
+	const report = await migrate({
+		exportFile: positional,
+		outDir,
+		base,
+		token,
+		assign: readAssign(),
+		fetchMissing: args.includes("--fetch-missing"),
+		log: (line) => console.log(line),
+	});
+	console.log(report.ready ? "\nREADY TO GO LIVE" : `\nNOT READY: see ${join(outDir, "migrate-report.json")} and go-live.json`);
+	process.exitCode = report.ready ? 0 : 1;
+} else if (command === "check") {
+	const prepared = option("--prepared");
+	const base = option("--base");
+	const token = process.env.EMDASH_TOKEN;
+	if (!prepared || !base) usage();
+	if (!token) {
+		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
+		process.exit(2);
+	}
+	const { legacyHosts } = JSON.parse(await readFile(join(prepared, "preflight.json"), "utf8"));
+	const report = await goLiveCheck({ rest: connectRest(base, token), mcp: await connectMcp(base, token), legacyHosts });
+	await writeFile(join(prepared, "go-live.json"), `${JSON.stringify(report, null, 2)}\n`);
+	console.log(report.ready ? `READY TO GO LIVE: ${report.scanned} entries scanned, 0 issues` : `NOT READY: ${report.issues.length} issue(s)`);
+	for (const issue of report.issues.slice(0, 20)) console.log(`  - ${issue.collection}/${issue.slug}: ${issue.problem}`);
+	if (report.pendingDrafts.length) {
+		console.log(`${report.pendingDrafts.length} published entr${report.pendingDrafts.length === 1 ? "y has" : "ies have"} unpublished changes to review (not scanned; migration-guard blocks publishing leftovers):`);
+		for (const d of report.pendingDrafts.slice(0, 20)) console.log(`  - ${d.collection}/${d.slug}`);
+	}
+	process.exitCode = report.ready ? 0 : 1;
 } else if (command === "media-metadata" || command === "baseline") {
 	const prepared = option("--prepared");
 	const base = option("--base");
@@ -153,13 +175,7 @@ if (command === "preflight" || command === "prepare") {
 		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
 		process.exit(2);
 	}
-	const assign: Record<string, string> = {};
-	args.forEach((a, i) => {
-		if (a !== "--assign") return;
-		const [name, from] = (args[i + 1] ?? "").split("=");
-		if (!name || !from) usage();
-		assign[name] = from;
-	});
+	const assign = readAssign();
 	const read = async (file: string) => JSON.parse(await readFile(join(prepared, file), "utf8"));
 	const outcomes = await fixMenus({
 		menus: await read("menus.json"),

@@ -59,7 +59,7 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 | `@astro-cms/auth-password` | auth provider | Password setup, login, invite acceptance; later email-code 2FA and password reset | Built, 7 tests (F9, F20) |
 | `@astro-cms/email-smtp` | native plugin | `email:deliver` via nodemailer, `SMTP_URL` read at send time | Built (F20) |
 | `@astro-cms/pg-search` | native plugin | Postgres full-text search (tsvector + pg_trgm) to replace SQLite-only FTS | Not started (F2) |
-| `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | Protected content, slugs, shortcodes, media URLs and metadata, redirects, menus and baseline revisions done, 34 tests |
+| `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | All §5.2 passes done, plus `migrate` (one command) and `check` (go-live); 39 tests. Awaiting a real client export |
 | `migration-guard` | sandboxed plugin | Scan for WP leftovers, block publishing while they remain, issues admin page and MCP tools | Built, 6 tests (F16) |
 | `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Not started (F15) |
 | ~~`redirects`~~ | — | **Not needed:** EmDash core has redirects (301–451, patterns, hit counts, 404 log, loop checks, admin API). `wp-migrate redirects` writes to it. Still missing: MCP tools for redirects (F15) | Dropped (2026-10-27) |
@@ -97,7 +97,7 @@ Wraps the EmDash WXR import API (the spike's `wp-import.mjs`), then runs our fix
 | Menus | Not imported | Rebuild from `nav_menu_item`. **Done (2026-10-27):** 5/5 menus, 70/70 items, nesting kept. Note: the blog template renders top-level menu items only, so client themes need dropdown rendering |
 | Baseline revision | First agent edit to imported content can't be undone (F15) | Create a revision of every imported entry. **Done (2026-10-27):** 60 → 0 entries without history; undo via `revision_restore` verified |
 | Media metadata | Alt text and captions dropped (F15) | Restore from the export, filling empty fields only. **Done:** alt text 28/37 (all the export had), captions 21 |
-| Final gate | | `migration-guard` scan must report 0 issues before the site goes live |
+| Final gate | | `migration-guard` scan must report 0 issues before the site goes live. **Done (2026-10-27):** `wp-migrate check`, also the last step of `wp-migrate migrate` (one command, 72 s on the test data). Proven to fail on a planted leftover |
 
 **Out of v0.1:** comments, `<!--more-->`/`<!--nextpage-->`, sticky posts and author byline de-duplication. These are listed in the report as manual follow-ups.
 

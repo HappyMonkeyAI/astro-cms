@@ -2,6 +2,16 @@
 
 WordPress → EmDash migration around EmDash's own WXR importer (SPEC §5.2). Passes are added one at a time; each has tests and an end-to-end check against the theme unit test data.
 
+**One command** (a fresh EmDash site with `migration-guard`, plus an admin-scope API token):
+
+```bash
+EMDASH_TOKEN=… node src/cli.ts migrate export.xml --out ./out --base https://site --assign primary=main-menu --fetch-missing
+```
+
+It runs every step below in order, prints one line per step, writes `out/migrate-report.json`, and exits 0 only when the go-live check says the site is ready. On the theme unit test data this took 72 s on a fresh site, most of it media download.
+
+The individual steps, for re-running one or debugging:
+
 ```bash
 node src/cli.ts preflight export.xml              # report only; changes nothing
 node src/cli.ts prepare export.xml --out ./out    # writes out/export.prepared.xml, preflight.json, shortcodes.json
@@ -11,7 +21,8 @@ EMDASH_TOKEN=… node src/cli.ts fix-media --prepared ./out --media ./out/import
 EMDASH_TOKEN=… node src/cli.ts redirects --prepared ./out --base https://site
 EMDASH_TOKEN=… node src/cli.ts menus --prepared ./out --base https://site --assign primary=main-menu
 EMDASH_TOKEN=… node src/cli.ts media-metadata --prepared ./out --media ./out/import/4-media.json --base https://site
-EMDASH_TOKEN=… node src/cli.ts baseline --prepared ./out --base https://site      # always last
+EMDASH_TOKEN=… node src/cli.ts baseline --prepared ./out --base https://site      # after all edits
+EMDASH_TOKEN=… node src/cli.ts check --prepared ./out --base https://site         # go-live check
 ```
 
 Run the post-import commands in this order. Each writes a JSON report into `./out`, and each is safe to re-run.
@@ -32,7 +43,7 @@ Import `*.prepared.xml`, **never the original export**. `fix-shortcodes` needs a
 | **Redirects and page hierarchy.** A 301 from each old permalink (date paths, nested `/parent/child/` page paths) to the new URL, using **EmDash core redirects** (group `wp-migrate`, idempotent). Internal links to old pages are rewritten to new URLs. Only published entries are redirected, so drafted protected content isn't reachable through its old URL | After import | ✅ Done. E2E: 76/76 old permalinks → 301 → 200, protected post 404 on old and new URLs, a re-run creates 0 |
 | **Menus.** One EmDash menu per WordPress menu (slug → valid name, e.g. `all_pages`). Items link to the imported page, post or category, keeping nesting; custom links to old pages are rewritten. Items whose target isn't published are dropped, and their children move up a level, as WordPress does. `--assign primary=<wp-menu>` fills a site menu, since theme locations aren't in the export | After import | ✅ Done. E2E: 5 menus, 70/70 items, 0 dropped, idempotent; `primary` nav links all 200 |
 | **Baseline revisions** (run last). EmDash's importer writes no revisions, so the first edit to a migrated entry can't be undone (spike F15). Every entry without history is re-saved unchanged, which snapshots it as a revision; published entries are re-published so the snapshot is live. Publish dates are kept, scheduled entries are never published, and entries with history are skipped | After import | ✅ Done. E2E: 60 → 0 entries without history, statuses and dates unchanged, re-run creates 0; an agent edit was undone by `revision_restore` |
-| Final `migration-guard` scan = 0 | After import | Planned |
+| **Go-live check** (`check`, last step of `migrate`). It hands `migration-guard` the export's legacy hosts (saved, so its publish gate keeps blocking them), runs its scan, and looks for leftover shortcode markers. Ready means 0 issues (exit 0). Published entries with unpublished changes are listed for review but don't block: the scans read the live version, and the plugin refuses to publish leftovers | After import | ✅ Done. E2E: READY on the migrated site; a leftover planted in a published post → NOT READY (exit 1) naming it; restored → READY |
 
 ## How shortcodes are converted
 

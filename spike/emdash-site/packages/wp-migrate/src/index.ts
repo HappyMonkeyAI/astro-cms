@@ -1,5 +1,9 @@
 export { createBaselineRevisions, needsBaseline, pickUnchangedField, type BaselineOutcome, type BaselineReport } from "./baseline.ts";
 export { buildBlocks, detectProvider } from "./blocks.ts";
+export { goLiveCheck, type GoLiveIssue, type GoLiveReport } from "./check.ts";
+export { importWxr, type ImportOptions, type ImportSummary } from "./import-wxr.ts";
+export { migrate, type MigrateOptions, type MigrateReport, type StepResult } from "./pipeline.ts";
+export { describePrepared, prepareExport, writePrepared, type Preflight, type PreparedExport } from "./prepare.ts";
 export {
 	fixMediaMetadata,
 	planMediaUpdate,
