@@ -1,7 +1,9 @@
 export { buildBlocks, detectProvider } from "./blocks.ts";
 export { fixMedia, type FixMediaOptions, type MediaOutcome } from "./fix-media.ts";
 export { listCollections, listEntries, listEntryIds, updateEntry, type CollectionInfo } from "./entries.ts";
+export { fixMenus, toMenuName, type FixMenusOptions, type MenuOutcome } from "./fix-menus.ts";
 export { fixRedirects, type FixRedirectsOptions, type RedirectsReport } from "./fix-redirects.ts";
+export { planMenuItems, readMenus, type EmDashMenuItem, type MenuItemSpec, type MenuResolver, type MenuSpec, type MenuTarget } from "./menus.ts";
 export { fixShortcodes, type EntryOutcome, type FixShortcodesOptions } from "./fix-shortcodes.ts";
 export { readPermalinks, type Permalink } from "./permalinks.ts";
 export { normalisePath, planRedirects, REDIRECT_GROUP, rewriteLinks, type PlannedRedirect, type SkippedRedirect } from "./redirects.ts";

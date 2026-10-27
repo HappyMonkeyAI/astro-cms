@@ -59,7 +59,7 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 | `@astro-cms/auth-password` | auth provider | Password setup, login, invite acceptance; later email-code 2FA and password reset | Built, 7 tests (F9, F20) |
 | `@astro-cms/email-smtp` | native plugin | `email:deliver` via nodemailer, `SMTP_URL` read at send time | Built (F20) |
 | `@astro-cms/pg-search` | native plugin | Postgres full-text search (tsvector + pg_trgm) to replace SQLite-only FTS | Not started (F2) |
-| `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | Protected content, slugs, shortcodes, media URLs and redirects done, 22 tests |
+| `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | Protected content, slugs, shortcodes, media URLs, redirects and menus done, 25 tests |
 | `migration-guard` | sandboxed plugin | Scan for WP leftovers, block publishing while they remain, issues admin page and MCP tools | Built, 6 tests (F16) |
 | `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Not started (F15) |
 | ~~`redirects`~~ | — | **Not needed:** EmDash core has redirects (301–451, patterns, hit counts, 404 log, loop checks, admin API). `wp-migrate redirects` writes to it. Still missing: MCP tools for redirects (F15) | Dropped (2026-10-27) |
@@ -94,7 +94,7 @@ Wraps the EmDash WXR import API (the spike's `wp-import.mjs`), then runs our fix
 | Hierarchy and URLs | Child pages flattened, permalinks changed | Keep the WP path as each entry's slug path, or generate redirects. **Decided: redirects** (EmDash pages have no parent). Nested paths 301 to `/pages/{slug}` |
 | Redirects | Old permalinks 404 | Write every old URL → new URL into `redirects`. **Done (2026-10-27)** with **EmDash core redirects**, so no plugin is needed. Internal links are rewritten too. E2E: 76/76 → 301 → 200 |
 | Non-ASCII slugs | Importer stores WP's percent-encoded slugs verbatim, so those entries are unreachable (F21) | **Done:** decode before import |
-| Menus | Not imported | Rebuild from `nav_menu_item` |
+| Menus | Not imported | Rebuild from `nav_menu_item`. **Done (2026-10-27):** 5/5 menus, 70/70 items, nesting kept. Note: the blog template renders top-level menu items only, so client themes need dropdown rendering |
 | Baseline revision | First agent edit to imported content can't be undone (F15) | Create a revision of every imported entry |
 | Final gate | | `migration-guard` scan must report 0 issues before the site goes live |
 

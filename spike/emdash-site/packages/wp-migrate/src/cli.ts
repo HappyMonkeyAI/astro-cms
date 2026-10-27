@@ -15,6 +15,9 @@
  *   wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]
  *                                                      301s from old permalinks to new URLs (EmDash core redirects,
  *                                                      group "wp-migrate"); rewrite internal links to old pages
+ *   wp-migrate menus --prepared <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--dry-run]
+ *                                                      one EmDash menu per WordPress menu; --assign fills a site menu
+ *                                                      (theme locations aren't in the export)
  *
  * Import the prepared file, never the original.
  */
@@ -23,6 +26,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
 import { fixMedia } from "./fix-media.ts";
+import { fixMenus } from "./fix-menus.ts";
+import { readMenus } from "./menus.ts";
 import { fixRedirects } from "./fix-redirects.ts";
 import { readPermalinks } from "./permalinks.ts";
 import { connectRest } from "./rest-client.ts";
@@ -48,6 +53,7 @@ function usage(): never {
 			"       wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
 			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
 			"       wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]",
+			"       wp-migrate menus --prepared <dir> --base <site-url> [--assign <emdash-menu>=<wp-menu-slug>]... [--dry-run]",
 		].join("\n"),
 	);
 	process.exit(2);
@@ -72,6 +78,8 @@ if (command === "preflight" || command === "prepare") {
 	);
 	console.log(`  ${converted.length} shortcode(s) will be converted: ${byKind.map(([k, n]) => `${n} ${k}`).join(", ") || "none"}`);
 	console.log(`  ${slugResult.decoded.length} percent-encoded slug(s) will be decoded (EmDash can't serve them encoded)`);
+	const menus = readMenus(source);
+	console.log(`  ${menus.length} menu(s): ${menus.map((m) => `${m.slug} (${m.items.length})`).join(", ") || "none"}`);
 	console.log(`  legacy hosts: ${findLegacyHosts(source).join(", ") || "none found"}`);
 	for (const p of problems) console.log(`    ! left as text in /${p.slug}: ${p.problem} — ${p.raw.slice(0, 80)}`);
 
@@ -92,8 +100,40 @@ if (command === "preflight" || command === "prepare") {
 		await writeFile(join(outDir, "preflight.json"), `${JSON.stringify(report, null, 2)}\n`);
 		await writeFile(join(outDir, "shortcodes.json"), `${JSON.stringify(shortcodeResult.entries, null, 2)}\n`);
 		await writeFile(join(outDir, "permalinks.json"), `${JSON.stringify(readPermalinks(source), null, 2)}\n`);
-		console.log(`Wrote ${preparedPath}, preflight.json, shortcodes.json and permalinks.json. Import the prepared file, not the original.`);
+		await writeFile(join(outDir, "menus.json"), `${JSON.stringify(menus, null, 2)}\n`);
+		console.log(`Wrote ${preparedPath} and the pass inputs (preflight, shortcodes, permalinks, menus). Import the prepared file, not the original.`);
 	}
+} else if (command === "menus") {
+	const prepared = option("--prepared");
+	const base = option("--base");
+	const token = process.env.EMDASH_TOKEN;
+	if (!prepared || !base) usage();
+	if (!token) {
+		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
+		process.exit(2);
+	}
+	const assign: Record<string, string> = {};
+	args.forEach((a, i) => {
+		if (a !== "--assign") return;
+		const [name, from] = (args[i + 1] ?? "").split("=");
+		if (!name || !from) usage();
+		assign[name] = from;
+	});
+	const read = async (file: string) => JSON.parse(await readFile(join(prepared, file), "utf8"));
+	const outcomes = await fixMenus({
+		menus: await read("menus.json"),
+		permalinks: await read("permalinks.json"),
+		legacyHosts: (await read("preflight.json")).legacyHosts,
+		mcp: await connectMcp(base, token),
+		assign,
+		dryRun: args.includes("--dry-run"),
+		log: (line) => console.log(`  ${line}`),
+	});
+	await writeFile(join(prepared, "menus-report.json"), `${JSON.stringify(outcomes, null, 2)}\n`);
+	const failed = outcomes.filter((o) => o.error);
+	console.log(`Menus: ${outcomes.length - failed.length} written (${outcomes.reduce((n, o) => n + o.items, 0)} items, ${outcomes.reduce((n, o) => n + o.dropped.length, 0)} dropped), ${failed.length} failed`);
+	for (const f of failed) console.log(`  ! ${f.menu}: ${f.error}`);
+	if (failed.length) process.exitCode = 1;
 } else if (command === "redirects") {
 	const prepared = option("--prepared");
 	const base = option("--base");

@@ -9,6 +9,7 @@ node src/cli.ts prepare export.xml --out ./out    # writes out/export.prepared.x
 EMDASH_TOKEN=… node src/cli.ts fix-shortcodes --prepared ./out --media ./out/import/4-media.json --base https://site
 EMDASH_TOKEN=… node src/cli.ts fix-media --prepared ./out --media ./out/import/4-media.json --base https://site --fetch-missing
 EMDASH_TOKEN=… node src/cli.ts redirects --prepared ./out --base https://site
+EMDASH_TOKEN=… node src/cli.ts menus --prepared ./out --base https://site --assign primary=main-menu
 ```
 
 Run the post-import commands in this order. Each writes a JSON report into `./out`, and each is safe to re-run.
@@ -27,7 +28,7 @@ Import `*.prepared.xml`, **never the original export**. `fix-shortcodes` needs a
 | Media metadata (alt, captions, titles from attachments) | After import | Planned |
 | **Non-ASCII slugs.** Percent-encoded post, category and tag slugs (`%ce%b5…`) are decoded. EmDash's importer stores them verbatim, which makes those entries unreachable at any URL (spike F21) | Before import | ✅ Done. E2E: Greek pages reachable |
 | **Redirects and page hierarchy.** A 301 from each old permalink (date paths, nested `/parent/child/` page paths) to the new URL, using **EmDash core redirects** (group `wp-migrate`, idempotent). Internal links to old pages are rewritten to new URLs. Only published entries are redirected, so drafted protected content isn't reachable through its old URL | After import | ✅ Done. E2E: 76/76 old permalinks → 301 → 200, protected post 404 on old and new URLs, a re-run creates 0 |
-| Menus | After import | Planned |
+| **Menus.** One EmDash menu per WordPress menu (slug → valid name, e.g. `all_pages`). Items link to the imported page, post or category, keeping nesting; custom links to old pages are rewritten. Items whose target isn't published are dropped, and their children move up a level, as WordPress does. `--assign primary=<wp-menu>` fills a site menu, since theme locations aren't in the export | After import | ✅ Done. E2E: 5 menus, 70/70 items, 0 dropped, idempotent; `primary` nav links all 200 |
 | Baseline revision per entry | After import | Planned |
 | Final `migration-guard` scan = 0 | After import | Planned |
 
