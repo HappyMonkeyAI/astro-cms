@@ -180,8 +180,8 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   | **No production email on Node except a community plugin** (`emdash-smtp`: 2★, one maintainer, trusted in-process, holds SMTP credentials) | **Filled.** `packages/email-smtp`, about 70 lines on `nodemailer`. It reads `SMTP_URL` at send time because plugin options are serialised at build (F1), and it never logs message bodies (they contain sign-in links). EmDash selected it automatically, and invite and magic-link emails were delivered to Mailpit |
   | **Microsoft sign-in is per tenant.** Emails are only "verified" through a configured tenant ID; `common`/`organizations` sign-ins aren't | Remaining. For an agency this means one Entra app (or tenant config) per client, or `emailVerified: true`, which weakens the check. Our distribution needs a provisioning script |
   | **OAuth app registration per site** (client ID/secret and redirect URI for each client domain) | Remaining. This is the biggest setup cost. Options: script it, or run a shared agency OAuth broker |
-  | **No 2FA** for password accounts | Remaining. Planned as an email one-time code, not an authenticator app |
-  | **No self-service password reset** | Partly covered: a magic link signs the user in, but there's no "set a new password" screen yet |
+  | **No 2FA** for password accounts | **Filled (2026-10-27).** Optional per-account email code: 6 digits, 10 min, 5 attempts, single use, hashed at rest; fails closed when email is unavailable. Turning it off needs the password. Live test passed. No admin toggle yet (API only) |
+  | **No self-service password reset** | **Filled (2026-10-27).** "Forgot password?" sends a single-use 30-minute link; opening the link doesn't consume it (mail scanners); a newer link cancels older ones; there's no account enumeration. Live test passed. **Gap:** existing sessions survive a reset, because EmDash sessions have no per-user index or revoke API (needs a core hook) |
 
 ### Migration tooling (milestone 2)
 

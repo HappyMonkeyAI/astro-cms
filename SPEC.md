@@ -114,7 +114,8 @@ Wraps the EmDash WXR import API (the spike's `wp-import.mjs`), then runs our fix
 As decided in CONTEXT "Authentication", building on F19 and F20.
 
 - **Ship as built:** Google and Microsoft SSO, invites, allowed domains, magic link, password with invite acceptance.
-- **Add:** a password reset screen and email-code 2FA in `auth-password`.
+- **Add:** a password reset screen and email-code 2FA in `auth-password`. **Done (2026-10-27):** 27 unit tests and a 26/26 live test through Mailpit.
+  - Still open: an admin toggle for 2FA, styling the reset page to match the admin, and revoking sessions on reset (needs an EmDash hook).
 - **OAuth model (decided 2026-10-27): one Google app, and one Microsoft Entra app when the client uses Microsoft 365, per client site.**
   - This keeps each site self-contained, with no shared service to run or secure.
   - A shared agency broker is deferred until onboarding volume justifies it.
