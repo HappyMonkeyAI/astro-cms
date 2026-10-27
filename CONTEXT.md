@@ -52,6 +52,21 @@ We do **not** compete on what EmDash already does well: its MCP server (72 tools
 - **ai-site-builder:** a manager/component/assembly/verifier pipeline. Here it becomes "generate a site from a brief" for onboarding and sales demos.
 - **restaurantMarketingAgent:** lead discovery, at the top of the funnel.
 
+## Authentication (decided 2026-10-26)
+
+Our clients are mostly non-technical business owners. Passkeys are secure, but their cross-platform support (password managers, Windows Hello, phones, consoles) is too inconsistent to require. Logging in should be one click, and getting locked out should be our problem to fix, not the client's.
+
+| Who | Default | Fallback |
+|---|---|---|
+| Agency admins | Passkey, or our own Google Workspace / Microsoft 365 | Password + 2FA |
+| Client users | **Sign in with Google / Microsoft**: invited by email, or self-provisioned via an allowed domain | Magic link; password (+ email code) as a last resort |
+| AI agents | Scoped API tokens; publishing gated by policy plugins | — |
+
+- Client accounts default to the **Editor** role, not Admin.
+- Agency admins can reset or re-invite a client in one click.
+- Passkeys stay available but are never required.
+- Spike evidence: `spike/README.md` F9, F18–F20.
+
 ## Constraints
 
 - Runs anywhere on Node. Nothing in our layer may require Cloudflare.

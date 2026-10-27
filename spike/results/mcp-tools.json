@@ -1,5 +1,58 @@
 [
   {
+    "name": "migration-guard__scan",
+    "description": "Scan site content for WordPress migration leftovers: raw shortcodes ([gallery], [caption], …) and links to legacy hosts. Optionally set the legacy hostnames to flag. Updates the issue list used by the publish gate.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Collection slugs to scan; omit for all"
+        },
+        "legacyHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Old WordPress/CDN hostnames to flag; saved for future scans and the publish gate"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "migration-guard__issues",
+    "description": "List entries that still contain WordPress migration leftovers, with counts per shortcode and legacy-URL samples. Entries listed here cannot be published until fixed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "destructiveHint": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "content_list",
     "title": "List Content",
     "description": "List content items in a collection with optional filtering and pagination. Returns items sorted by the specified field. Use the nextCursor value from the response to fetch the next page. Status can be 'draft', 'published', or 'scheduled'. If no status is given, all non-trashed items are returned.",

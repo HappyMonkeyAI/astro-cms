@@ -1,0 +1,25 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "migration-guard",
+	"publisher": "did:web:spike.example.com",
+
+	"license": "MIT",
+	"author": { "name": "astro-cms spike" },
+	"security": { "email": "security@example.com" },
+	"description": "Flags migration leftovers (raw shortcodes, old-host URLs) and gates publishing on them",
+
+	// Trust contract. Read-only content access plus the publication policy hook;
+	// no writes, no publishing authority, no network.
+	"capabilities": ["content:read", "schema:read", "hooks.content-policy:register"],
+	"allowedHosts": [],
+	"storage": {
+		// One record per entry with open issues, keyed "<collection>:<id>"
+		"issues": { "indexes": ["collection", "scannedAt"] },
+		// Publish attempts seen by the policy hook (origin, actor, decision)
+		"publish_log": { "indexes": ["at", "origin", "decision"] },
+	},
+	"admin": {
+		"pages": [{ "path": "/issues", "label": "Migration issues", "icon": "warning" }],
+	},
+}

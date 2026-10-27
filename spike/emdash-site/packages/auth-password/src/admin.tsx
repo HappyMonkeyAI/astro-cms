@@ -32,12 +32,61 @@ function ErrorBox({ message }: { message: string | null }) {
 	return <div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{message}</div>;
 }
 
-export function LoginButton() {
+/**
+ * On the login page the host wraps this button and opens LoginForm on click.
+ * On the invite page the host passes `inviteToken` and adds no click handling,
+ * so the button opens the invite form itself.
+ */
+export function LoginButton({ inviteToken }: { inviteToken?: string }) {
+	const [open, setOpen] = React.useState(false);
+	if (inviteToken && open) return <InviteForm token={inviteToken} />;
 	return (
-		<Button type="button" variant="outline" className="w-full justify-center">
+		<Button
+			type="button"
+			variant="outline"
+			className="w-full justify-center"
+			onClick={inviteToken ? () => setOpen(true) : undefined}
+		>
 			<KeyIcon className="h-5 w-5" />
-			<span>Password</span>
+			<span>{inviteToken ? "Use a password instead" : "Password"}</span>
 		</Button>
+	);
+}
+
+function InviteForm({ token }: { token: string }) {
+	const [name, setName] = React.useState("");
+	const [password, setPassword] = React.useState("");
+	const [confirm, setConfirm] = React.useState("");
+	const [isLoading, setIsLoading] = React.useState(false);
+	const [error, setError] = React.useState<string | null>(null);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (password !== confirm) {
+			setError("Passwords do not match");
+			return;
+		}
+		setIsLoading(true);
+		setError(null);
+		try {
+			await postJson("/_emdash/api/auth/password/invite-complete", { token, name, password });
+			window.location.href = "/_emdash/admin";
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to accept invite");
+			setIsLoading(false);
+		}
+	};
+
+	return (
+		<form onSubmit={handleSubmit} className="space-y-3 text-left">
+			<Input label="Your name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" disabled={isLoading} />
+			<Input label="Choose a password (12+ characters)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" disabled={isLoading} />
+			<Input label="Confirm password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" disabled={isLoading} />
+			<ErrorBox message={error} />
+			<Button type="submit" className="w-full" disabled={isLoading || !password || !confirm}>
+				{isLoading ? "Creating account..." : "Create account"}
+			</Button>
+		</form>
 	);
 }
 

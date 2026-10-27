@@ -22,7 +22,7 @@ docker compose down -v           # wipe the database and uploads
 | 2a | WordPress import: theme unit test data (`fixtures/themeunittestdata.wordpress.xml`) | ✅ Done. Content imports cleanly, but migration fidelity has major gaps (F11–F13). Reports: `results/` |
 | 2b | WordPress import: a real client WXR export | ⏳ Needs a file |
 | 3 | Drive the site through MCP with Claude (realistic editing tasks) | ✅ Done. A strong base, with safety gaps for agency use (F14–F15). Client: `scripts/mcp.mjs`; task: `scripts/mcp-task-fix-gallery.mjs` |
-| 4 | Write a trivial plugin + admin page | 🟡 Started: an auth provider (`emdash-site/packages/auth-password`), not yet a plugin |
+| 4 | Write a plugin + admin page | ✅ Done. `emdash-site/plugins/migration-guard`: a sandboxed (workerd) plugin with hooks, a publish policy, storage, routes, MCP tools and a Block Kit admin page (F16–F17). Also an auth provider (`packages/auth-password`, F9) |
 
 ## Findings
 
@@ -108,5 +108,69 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   | **`tools/list` ignores token scope** | A content-only token still sees all 72 tools, wasting agent context and inviting failed calls |
   | **No MCP tools for redirects, comments, users or plugins** | Redirect management matters most after a migration |
   | Not tested yet | Prompt injection through content an agent reads (e.g. instructions hidden in an imported post) |
+
+- **F16 🟢 The plugin system is EmDash's strongest part, and most of our F13/F15 answers can be plugins rather than a fork.**
+  - **Built:** `migration-guard`, a **sandboxed** plugin running in a workerd child process on Node.
+    - Its trust contract is `content:read`, `schema:read` and `hooks.content-policy:register`.
+    - `content:afterSave`/`afterDelete` hooks keep an issue list in plugin storage.
+    - A `content:beforePublish` **policy** rejects publishing while raw shortcodes or legacy-host URLs remain, and logs each attempt's origin and actor.
+    - `scan` and `issues` routes are exposed as **MCP tools**.
+    - A Block Kit admin page shows stats, a hosts form, a rescan button and an issues table.
+  - **Results on the imported site:**
+    - The scan covered 80 entries in 0.33 s and flagged 15, matching the F13 inspection.
+    - An agent using a `content:read`+`content:write`+`mcp:tools:migration-guard` token listed the issues through the plugin's MCP tool.
+    - The agent's `content_publish` of a flagged post was refused with `[PUBLISH_REJECTED] Migration leftovers must be fixed before publishing: 1× [audio], 2 legacy-host URLs`. The clean post published.
+    - Both attempts were logged with `origin: mcp`.
+  - **Tests:** 6 tests pass through EmDash's production sandbox wrapper (`npm test`), and the typecheck is clean.
+  - **Good security design:**
+    - Capabilities are declared up front and printed when the plugin loads.
+    - Plugin MCP tools need a separate admin consent step (`PUT /admin/plugins/:id/mcp`).
+    - Even a full-`admin` token needs the explicit `mcp:tools:<pluginId>` scope to call them.
+    - Error messages are actionable throughout.
+  - **Implication:** the approval gate, migration quality gate and agent audit trail (F15) can largely ship as sandboxed plugins. Destructive-action approval is the exception: there's no `beforeDelete` origin and no hook for schema or permanent deletion.
+- **F17 🟠 Plugin toolchain and docs friction** (each cost time, and each is a small upstream fix).
+
+  | Issue | Detail |
+  |---|---|
+  | **workerd won't start in `node:*-slim` images** | `TLS configuration: … No CA certificates were loaded from the system`, after which every sandboxed plugin call fails. Fixed by installing `ca-certificates`. The sandbox docs don't mention it, and their Docker example uses a different base image |
+  | **The scaffold pins stale tooling** | `plugin-cli init` writes `"emdash": ">=0.12.0 <1.0.0"` (1.3.1 is current) and `"@emdash-cms/plugin-test": "^0.1.0"`. On 0.x a caret never reaches 0.2, so the bundled test harness uses plugin-cli **0.11**, which rejects the documented `schema:read` and `hooks.content-policy:register` capabilities. Fixed with `plugin-test@^0.2.10` |
+  | **Docs vs runtime: policy `origin`** | The docs say origins are strings (`api`, `mcp`, …), but the type and runtime use `{ source: "mcp" }`. Code written from the docs logs `[object Object]`, and origin checks silently never match |
+  | **Docs vs types: sandbox support** | The `sandboxed` config JSDoc says it "only works on Cloudflare with Worker Loader", while the Node workerd runner works fine. Loading a *local* sandboxed plugin is only documented in the scaffold README |
+  | **The docs reference APIs that don't exist** | `createPluginRuntimeTestHost()` isn't exported by `@emdash-cms/plugin-test` 0.1/0.2 |
+  | **Publishing needs an Atmosphere identity even to scaffold** | `init --publisher <handle>` resolves the handle over the network. A placeholder `did:web:` works for local-only plugins |
+  | **No token scope separates editing from publishing** | Valid token scopes are `content:read/write`, `media:*`, `schema:*`, `settings:*`, `menus:manage`, `taxonomies:manage`, `mcp:tools[:id]` and `admin`. `content:write` includes publishing and permanent deletion, so policy plugins are the only publish gate |
+  | **The policy actor is the token's owner, not the token** | Multiple agents sharing one user can't be told apart in an audit trail |
+  | **Two workerd versions get installed** | The site's `workerd` and miniflare's nested `workerd` (with its install script blocked by npm 11 `allowScripts`). It's harmless here but confusing |
+  | Not tested | CPU and memory exhaustion by a hostile plugin. The docs say only the 30 s wall-time limit is enforced on Node |
+
+### Client authentication (non-technical users; see CONTEXT.md "Authentication")
+
+- **F18 🔴 On Node, OAuth (Google/Microsoft/GitHub) credentials are baked in at build time.**
+  - The OAuth routes read `cfEnv ?? import.meta.env`, and on Node Vite inlines `import.meta.env` at build time.
+  - With credentials set only at runtime, the routes say "OAuth provider google is not configured". When they're set at build time, the **client secret is written into 2 files in `dist/`** (and so into the image).
+  - Our patch (`scripts/patch-emdash.mjs`, 2 lines) reads `process.env` at request time. After it, the runtime-only dummy credentials produce correct redirects to `accounts.google.com` and `login.microsoftonline.com/<tenant>`, with 0 secrets in `dist/`.
+  - Same root cause as F1. This is the third upstream contribution.
+  - **Verified with a real Google OAuth client (2026-10-27).** Credentials are in the gitignored `.env` only (runtime), and the downloaded `client_secret*.json` is gitignored.
+    - **Uninvited Gmail:** rejected with "Self-signup is not allowed for your email".
+    - **Invited the same Gmail as Editor:** accepted through Google, which created one Editor user (`email_verified=1`) and one linked `google` account, and used up the invite token.
+    - **Signed out and back in with Google:** went straight in, with no duplicate user or link.
+    - **Server log:** the rejection logs the error code only, not the email address.
+- **F19 🟢 What already supports non-passkey users:**
+  - **OAuth can accept invites.** The invite page passes `inviteToken` to every provider button, and the callback completes the invite only when the provider-verified email matches the invited address.
+  - **Allowed domains:** `POST /admin/allowed-domains {domain, defaultRole}`, so anyone with a verified `@clientbusiness.example` Google/Microsoft account self-provisions as Editor. Tested through the API.
+  - **Magic links:** tested end to end through our SMTP transport and Mailpit.
+    - Sending is rate-limited (3 per 5 min per IP) and doesn't reveal whether an account exists. No email was sent for an unknown address.
+    - Clicking the link leads to a confirmation page (POST), so email-scanner prefetches can't use it up.
+    - Each link is single-use.
+- **F20 🟠 Gaps found and filled (ours) or remaining.**
+
+  | Gap | Status |
+  |---|---|
+  | **The built-in invite flow requires a passkey** (`invite/complete` only accepts a WebAuthn registration) | **Filled.** `auth-password` gained `POST /auth/password/invite-complete` plus an invite-aware `LoginButton` ("Use a password instead"). Tested: the invite is validated, weak passwords are rejected, the account is created with the invited role (Editor), the invite is single-use, and password sign-in works afterwards |
+  | **No production email on Node except a community plugin** (`emdash-smtp`: 2★, one maintainer, trusted in-process, holds SMTP credentials) | **Filled.** `packages/email-smtp`, about 70 lines on `nodemailer`. It reads `SMTP_URL` at send time because plugin options are serialised at build (F1), and it never logs message bodies (they contain sign-in links). EmDash selected it automatically, and invite and magic-link emails were delivered to Mailpit |
+  | **Microsoft sign-in is per tenant.** Emails are only "verified" through a configured tenant ID; `common`/`organizations` sign-ins aren't | Remaining. For an agency this means one Entra app (or tenant config) per client, or `emailVerified: true`, which weakens the check. Our distribution needs a provisioning script |
+  | **OAuth app registration per site** (client ID/secret and redirect URI for each client domain) | Remaining. This is the biggest setup cost. Options: script it, or run a shared agency OAuth broker |
+  | **No 2FA** for password accounts | Remaining. Planned as an email one-time code, not an authenticator app |
+  | **No self-service password reset** | Partly covered: a magic link signs the user in, but there's no "set a new password" screen yet |
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

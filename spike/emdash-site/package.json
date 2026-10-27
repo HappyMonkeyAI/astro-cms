@@ -22,9 +22,18 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "pg": "^8.16.0",
-    "@astro-cms/auth-password": "file:packages/auth-password"
+    "@astro-cms/auth-password": "file:packages/auth-password",
+    "migration-guard": "file:plugins/migration-guard",
+    "@emdash-cms/sandbox-workerd": "0.9.5",
+    "workerd": "1.20261019.1",
+    "@astro-cms/email-smtp": "file:packages/email-smtp",
+    "nodemailer": "10.2.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10"
+  },
+  "allowScripts": {
+    "workerd@1.20261019.1": true,
+    "esbuild": true
   }
 }
