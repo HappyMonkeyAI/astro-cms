@@ -9,6 +9,7 @@ import agentGuard from "agent-guard";
 import { smtpEmail } from "@astro-cms/email-smtp";
 import { cookieConsent } from "@astro-cms/cookie-consent";
 import { slider } from "@astro-cms/slider";
+import { setupGuard } from "@astro-cms/setup-guard";
 import { google } from "emdash/auth/providers/google";
 import { microsoft } from "emdash/auth/providers/microsoft";
 
@@ -22,6 +23,10 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	integrations: [
+		// Setup and sign-in stay locked on a fresh site until opened with ASTRO_CMS_SETUP_TOKEN (F10).
+		// Must come before emdash(): Astro runs "pre" middleware in integration order, and the setup
+		// link has to be handled before EmDash redirects an unclaimed admin to its wizard.
+		setupGuard(),
 		react(),
 		emdash({
 			// DATABASE_URL and UPLOADS_DIR are read when the server starts, not at build (SPEC §5.1)

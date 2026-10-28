@@ -1,0 +1,23 @@
+{
+	"name": "@astro-cms/setup-guard",
+	"version": "0.1.0",
+	"description": "Keeps a fresh astro-cms site from being claimed by whoever reaches it first (spike F10)",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./middleware": "./src/middleware.ts",
+		"./link": "./src/link.ts"
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"license": "MIT",
+	"peerDependencies": {
+		"astro": ">=5",
+		"emdash": ">=1.3.0"
+	}
+}

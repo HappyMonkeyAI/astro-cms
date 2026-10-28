@@ -1,0 +1,5 @@
+# Automatic HTTPS for the site (docker compose --profile tls up -d). DOMAIN comes from .env.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy site:4321
+}

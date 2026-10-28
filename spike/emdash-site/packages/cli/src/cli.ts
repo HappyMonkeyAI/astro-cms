@@ -2,6 +2,7 @@
 /**
  * astro-cms: agency CLI for astro-cms sites.
  *
+ *   astro-cms new <name> [--domain cms.example.com] [--port 4321] [--image <ref>] [--dir .]   generate a deployable site
  *   astro-cms plugin new <slug> [--dir plugins] [--description <text>]   generate a sandboxed plugin
  *
  *   astro-cms token profiles
@@ -22,6 +23,7 @@
 
 import { resolve } from "node:path";
 
+import { scaffoldSite, siteVars, validateSiteOptions } from "./new-site.ts";
 import { parseLifetime, PROFILES } from "./profiles.ts";
 import { defaults, scaffoldPlugin, validateSlug } from "./scaffold.ts";
 import { agentClient, tokenClient } from "./tokens.ts";
@@ -32,10 +34,33 @@ const option = (name: string) => {
 	return i === -1 ? undefined : args[i + 1];
 };
 
+if (group === "new") {
+	const name = command;
+	if (!name || name.startsWith("--")) {
+		console.error("Usage: astro-cms new <name> [--domain cms.example.com] [--port 4321] [--image <ref>] [--dir .]");
+		process.exit(2);
+	}
+	const opts = { name, domain: option("--domain"), port: option("--port"), image: option("--image") };
+	const problem = validateSiteOptions(opts);
+	if (problem) {
+		console.error(problem);
+		process.exit(2);
+	}
+	const vars = siteVars(opts);
+	const dir = resolve(option("--dir") ?? ".", name);
+	const files = await scaffoldSite(dir, vars);
+	console.log(`Created ${name} in ${dir}: ${files.join(", ")}`);
+	console.log(`\nStart it:\n  cd ${dir}\n  ${opts.domain ? "docker compose --profile tls up -d   # HTTPS for " + opts.domain : "docker compose up -d"}`);
+	console.log(`\nThen claim it with this setup link (shown once; it's also ASTRO_CMS_SETUP_TOKEN in .env):\n  ${vars.siteUrl}/_emdash/admin?setup_token=${vars.setupToken}`);
+	console.log(`\n.env holds the database password and encryption key: never commit it, and back it up with ./backups (see README.md).`);
+	process.exit(0);
+}
+
 function usage(): never {
 	console.error(
 		[
-			"Usage: astro-cms plugin new <slug> [--dir plugins] [--description <text>] [--publisher <did>] [--author <name>] [--security-email <email>]",
+			"Usage: astro-cms new <name> [--domain cms.example.com] [--port 4321] [--image <ref>] [--dir .]",
+			"       astro-cms plugin new <slug> [--dir plugins] [--description <text>] [--publisher <did>] [--author <name>] [--security-email <email>]",
 			"       astro-cms token profiles",
 			"       astro-cms token create --base <site-url> --profile <name> --name <token-name> [--expires 30d|12h]",
 			"       astro-cms token list --base <site-url>",

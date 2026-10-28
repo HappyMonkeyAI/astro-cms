@@ -80,6 +80,13 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
 - **F10 🟠 An unclaimed instance can be claimed by anyone who reaches it.**
   - This is true of core passkey setup as well as our provider.
   - The deployment recipe must keep a fresh instance private (localhost, a VPN or an IP allowlist) until setup is complete, or pre-provision the admin from the CLI.
+  - **Worse than first thought:** before setup completes, *signing in with Google or Microsoft* makes the person admin. The OAuth callback's `canSelfSignup` returns ADMIN until `emdash:setup_complete`.
+  - **🟢 Resolved by `@astro-cms/setup-guard`** (milestone 6). With `ASTRO_CMS_SETUP_TOKEN` set, every setup and `/_emdash/api/auth/*` route answers `403 SETUP_LOCKED` until setup completes, unless the request carries the cookie from the setup link (`?setup_token=`).
+    - The cookie is a hash, never the token. A wrong token gets the same redirect, with no cookie.
+    - After setup, the guard is inert.
+    - **Gotcha:** EmDash's middleware is also "pre" and redirects an unclaimed admin to `/_emdash/admin/setup`. Astro orders "pre" middleware by integration order, so `setupGuard()` must be listed **before** `emdash()`; otherwise the link never runs.
+    - `astro-cms new` generates the token and prints the link once.
+    - **Live test 19/19:** claim, lock and recipe (health, loopback, backup and restore).
 - **F11 🔴 The SSRF guard depends on Cloudflare DNS-over-HTTPS, even on Node.**
   - Every server-side fetch to an external host (including WordPress media import) resolves hostnames through `https://cloudflare-dns.com/dns-query`. It does not use the system resolver, and this can't be configured.
   - On networks that block public DoH (this one sinkholes `cloudflare-dns.com` to `0.0.0.0`, which is common on corporate and on-prem networks), every request fails with `SSRF_BLOCKED`. The import UI reports only "Failed to import media" (37 of 37).

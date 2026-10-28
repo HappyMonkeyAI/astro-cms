@@ -62,7 +62,8 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 | `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | All §5.2 passes done, plus `migrate` (one command) and `check` (go-live); 39 tests. Awaiting a real client export |
 | `migration-guard` | sandboxed plugin | Scan for WP leftovers, block publishing while they remain, issues admin page and MCP tools | Built, 6 tests (F16) |
 | `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Done: revision-fenced approvals, 7 tests, live test 13/13 |
-| `@astro-cms/cli` | Node CLI | `astro-cms token …` presets; `astro-cms agent create/list/disable` | Done (token and agent commands) |
+| `@astro-cms/setup-guard` | Astro integration | Locks setup and sign-in on a fresh site until opened with the setup link (F10) | Built, 4 tests; live 19/19 with the recipe |
+| `@astro-cms/cli` | Node CLI | `astro-cms new` (deployable site folder: compose, .env secrets, Caddy, backup and restore); `astro-cms token …` presets; `astro-cms agent create/list/disable`; `astro-cms plugin new` | Done (token and agent commands) |
 | ~~`redirects`~~ | — | **Not needed:** EmDash core has redirects (301–451, patterns, hit counts, 404 log, loop checks, admin API). `wp-migrate redirects` writes to it. Still missing: MCP tools for redirects (F15) | Dropped (2026-10-27) |
 | `astro-cms` CLI | Node CLI | Site scaffolding, OAuth provisioning, `wp-migrate`, token management, upgrades | Scripts only (`spike/scripts/`) |
 
@@ -208,6 +209,30 @@ Before building each plugin: check EmDash core and its existing plugins, then wr
 - **Health check** on `/_emdash/api/health` (F8).
 - **Backups:** `pg_dump` and the media volume (or S3).
 - **Out of v0.1:** a managed hosting control plane.
+
+**Status: built.** `astro-cms new <name> [--domain] [--port] [--image]` writes a site folder:
+- **`compose.yaml`:**
+  - Postgres 17 and the site, each with a health check;
+  - the site published on loopback only, with an uploads volume;
+  - optional Caddy with automatic HTTPS (`--profile tls`).
+- **`.env`:** fresh secrets (a hex Postgres password, an `emdash_enc_v1_` key and a setup token). It's mode 600 and gitignored.
+- **`backup.sh` and `restore.sh`:** `pg_dump --format=custom` plus a tarball of the uploads, with rotation.
+- **A README:** start, claim, email and OAuth, backups and upgrades.
+
+**F10 is solved by `@astro-cms/setup-guard`, not by pre-creating the admin.**
+- **Why not pre-create:** core's passkey and OAuth paths also claim an unclaimed site. The OAuth callback grants Admin until setup is complete.
+- **What the guard locks:** until setup completes, every setup and `/_emdash/api/auth/*` route needs the cookie from the setup link (`?setup_token=`), so the agency can use any sign-in method.
+- **Live test 19/19 on a generated stack:**
+  - the site becomes healthy, and is published on loopback only;
+  - setup is locked to others (password, passkey, OAuth);
+  - a wrong token gets nothing, and the link's cookie never contains the token;
+  - claiming works, the guard is inert afterwards, and setup can't be repeated;
+  - backup, then a change, then restore returns the earlier state.
+
+**Still to do:**
+- publishing the image to a registry (`ASTRO_CMS_IMAGE`);
+- S3 media storage;
+- off-server backup copy (left to the agency's tooling).
 
 ## 6. Upstream contributions
 
