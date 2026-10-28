@@ -255,7 +255,7 @@ These shrink `@astro-cms/patches`. File issues first, then PRs.
 4. **Agent safety.** §5.4 `agent-guard`, token profiles, the destructive-action patch, and a prompt-injection test (not yet tested, F15).
 5. **Plugin kit and catalogue.** §5.6: `astro-cms plugin new`, the guide, then `cookie-consent` and `slider` (sitemap and SEO are core).
 6. **Search and deployment.** §5.5, §5.7.
-7. **Pilot.** One real client site migrated, handed over and edited by an agent for two weeks.
+7. **Pilot.** One real client site migrated, handed over and edited by an agent for two weeks. The migration and deployment test is scripted in [`PILOT-PROMPT.md`](PILOT-PROMPT.md), a self-contained brief an agent on another host can run.
 
 ## 8. Open questions
 
