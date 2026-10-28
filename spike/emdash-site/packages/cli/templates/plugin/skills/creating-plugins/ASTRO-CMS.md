@@ -39,6 +39,7 @@ Things we learned building `migration-guard` and `agent-guard` on EmDash 1.3.x. 
 
 - **`createPluginTestHost()`** is fast and good for hooks, routes and storage, but `seedContent()` takes plain field values (a `status` key is just a field), and there are no content actions. Code that calls `ctx.content.getVersioned` will fail there; catch it.
 - **`createPluginRuntimeTestHost()`** has real content (`fixtures.content(collection, { slug, status: "published", data })`), real publishing (`actions.content.update/publish`), plugin settings (`fixtures.plugin.setting`), storage inspection (`inspect.storage.list`) and admin routes. Use it for anything involving published content or EmDash's real publish path. Always `dispose()` it.
+- **Keep the plugin in a short path on Windows.** In a deep folder (a temp or scratch directory, ~170+ characters), vitest fails with "Timeout starting cloudflare-pool runner" after 90s, before any test runs. The same plugin passes in a short path such as `C:\Users\you\kt\my-plugin` or `plugins/<slug>` in the site repo.
 - **Run `npm run check` before handing off.**
 
 ## Shipping it in the site image
