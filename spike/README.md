@@ -242,4 +242,22 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - Migrations (admin token) still publish directly.
   - **Upstream candidates:** a per-token actor (so policies and history can tell tokens apart), and a delete policy hook.
 
+### Plugin catalogue (milestone 5)
+
+- **F25 🟠 Sandboxed plugins can't add anything to public pages.**
+  - When EmDash loads a sandboxed plugin's manifest, it skips its `page:fragments` hook (`emdash-runtime` `if (hook.name === "page:fragments") continue`). The manifest validator still accepts the hook and the `hooks.page-fragments:register` capability, so the plugin installs fine and silently does nothing.
+  - Sandboxed plugins can still contribute `page:metadata` (meta, Open Graph, JSON-LD and a fixed set of link rels), but no scripts or HTML.
+  - So `cookie-consent` is a **trusted (native) package** (`packages/cookie-consent`), like `email-smtp`. That's acceptable for first-party code, but third-party plugins that need public-page output (analytics, chat widgets, banners) will need either trust or an upstream change.
+  - The admin settings form comes from the **descriptor's** `settingsSchema` (`getPluginSettingsSchema(configuredPlugins, …)`), not from `definePlugin({ admin })`. Declare it on both.
+  - `html` fragments are rendered raw: the plugin must escape everything itself.
+  - **Live test 13/13:**
+    - the banner renders hidden, with its client script;
+    - an admin edits the settings through `/_emdash/api/admin/plugins/cookie-consent/settings`;
+    - editor text is escaped, and a `javascript:` policy link is dropped;
+    - Consent Mode v2 defaults go in `<head>`;
+    - disabling the banner removes it;
+    - it never appears in the admin.
+  - **Not yet checked in a real browser:** the banner's click behaviour, the consent cookie and activation of gated scripts. browseros-neo was offline and memory was low.
+- **F26 🟠 Slider blocks can't use the media picker per slide.** Block Kit `repeater` sub-fields are limited to text, number, select and toggle (`RepeaterSubField`). A repeater of slides therefore takes image URLs as text; `media_picker` only works as a top-level block field.
+
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

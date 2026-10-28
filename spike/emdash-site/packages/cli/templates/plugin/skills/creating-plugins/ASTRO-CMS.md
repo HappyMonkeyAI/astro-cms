@@ -7,6 +7,7 @@ Things we learned building `migration-guard` and `agent-guard` on EmDash 1.3.x. 
 - **The policy-hook `event.origin` is an object**, `{ source: "api" | "mcp" | "visual-editor" | "plugin" | "scheduler" | "system", pluginId? }`, not a string. Code written from the docs logs `[object Object]`, and `origin === "mcp"` never matches. Use `event.origin.source`.
 - **`event.actor` is the token *owner*,** `{ id, role, source }`, not the token. Two agents sharing one user can't be told apart. astro-cms gives every agent its own account (`astro-cms agent create`), so `actor.id` identifies the agent.
 - **Sandboxed plugins run on Node too** (workerd child process). The `sandboxed` JSDoc saying "only on Cloudflare" is out of date.
+- **Sandboxed plugins can't add scripts or HTML to public pages.** EmDash skips a sandboxed plugin's `page:fragments` hook, although the manifest validator accepts it, so the plugin silently does nothing. `page:metadata` (meta, Open Graph, JSON-LD) does work. Banners, widgets and analytics tags need a trusted package (see `packages/cookie-consent`).
 - **Keep `@emdash-cms/plugin-test` at ^0.2.10.**
   - It exports `createPluginRuntimeTestHost()`; 0.1.x doesn't.
   - `plugin-cli init` used to pin `^0.1.0`, which bundles a plugin-cli 0.11 that rejects current capabilities.

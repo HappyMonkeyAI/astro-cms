@@ -7,6 +7,7 @@ import { localFromEnv, postgresFromEnv } from "@astro-cms/runtime-config";
 import migrationGuard from "migration-guard";
 import agentGuard from "agent-guard";
 import { smtpEmail } from "@astro-cms/email-smtp";
+import { cookieConsent } from "@astro-cms/cookie-consent";
 import { google } from "emdash/auth/providers/google";
 import { microsoft } from "emdash/auth/providers/microsoft";
 
@@ -25,7 +26,8 @@ export default defineConfig({
 			// DATABASE_URL and UPLOADS_DIR are read when the server starts, not at build (SPEC §5.1)
 			database: postgresFromEnv(),
 			authProviders: [password(), google(), microsoft()],
-			plugins: [smtpEmail({ from: { email: "cms@spike.example.com", name: "Spike CMS" } })],
+			// cookie-consent is trusted (native): EmDash ignores page:fragments from sandboxed plugins
+			plugins: [smtpEmail({ from: { email: "cms@spike.example.com", name: "Spike CMS" } }), cookieConsent()],
 			// Sandboxed: runs in a workerd child process on Node
 			// agent-guard: MCP publishes by non-admin (agent) accounts wait for an editor's approval
 			sandboxed: [migrationGuard, agentGuard],

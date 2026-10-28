@@ -166,16 +166,16 @@ EmDash's MCP server is the interface. We don't build our own (F14).
 - v0.1 runs **only our own plugins**.
 - Building a plugin must be easy for us and for other developers from day one, so a third-party catalogue can open later without reworking anything.
 
-**First-party catalogue.** Plugins WordPress clients expect, built on the `migration-guard` pattern (F16): sandboxed unless the plugin needs Node.
+**First-party catalogue.** Plugins WordPress clients expect, built on the `migration-guard` pattern (F16): sandboxed unless the plugin needs Node **or adds anything to public pages**. EmDash ignores `page:fragments` from sandboxed plugins (F25), so those are trusted packages.
 
-| Plugin | Notes |
+| Plugin | Status |
 |---|---|
-| `cookie-consent` | Banner, consent categories and a consent log. Blocks analytics scripts until consent is given |
-| `sitemap` | `sitemap.xml` and `robots.txt` from published content. First check whether EmDash core or `@astrojs/sitemap` already covers it |
-| `slider` | A carousel block type with a site-side renderer and an admin editor. First check how plugins can contribute Portable Text block types and renderers |
-| `redirects` | Already in §5.2 |
+| `cookie-consent` | **Built** (trusted, `packages/cookie-consent`). Equal-weight accept and reject, analytics and marketing categories, gating of `<script type="text/plain" data-consent="…">`, optional Google Consent Mode v2, a revision number to ask everyone again, and admin-editable text. Live test 13/13. A consent log and a browser click test are still to do |
+| `slider` | Next. A carousel Portable Text block with a site-side renderer (`componentsEntry`, so trusted). Slides use a repeater, with image URLs as text (F26) |
 | `forms` | Contact form and submissions inbox, with email through `email-smtp`. Possibly v0.2 |
-| `seo` | Per-entry title and description, plus Open Graph. First check what core already provides |
+| ~~`sitemap`~~ | Dropped: EmDash core serves `sitemap.xml` and `robots.txt` |
+| ~~`seo`~~ | Dropped: core has per-entry SEO fields and Open Graph |
+| ~~`redirects`~~ | Dropped: core redirects (F22) |
 
 Before building each plugin: check EmDash core and its existing plugins, then write a one-paragraph scope, then build it with the kit.
 
@@ -220,7 +220,7 @@ These shrink `@astro-cms/patches`. File issues first, then PRs.
 2. **Migration.** §5.2 against theme unit test data, then a real client export (spike checklist 2b).
 3. **Client auth completion.** §5.3: reset, 2FA, `astro-cms oauth`, and a Microsoft round trip.
 4. **Agent safety.** §5.4 `agent-guard`, token profiles, the destructive-action patch, and a prompt-injection test (not yet tested, F15).
-5. **Plugin kit and catalogue.** §5.6: `astro-cms plugin new`, the guide, then `cookie-consent`, `sitemap` and `slider`.
+5. **Plugin kit and catalogue.** §5.6: `astro-cms plugin new`, the guide, then `cookie-consent` and `slider` (sitemap and SEO are core).
 6. **Search and deployment.** §5.5, §5.7.
 7. **Pilot.** One real client site migrated, handed over and edited by an agent for two weeks.
 
