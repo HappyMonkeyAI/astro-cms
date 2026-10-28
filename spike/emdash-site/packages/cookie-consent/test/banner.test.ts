@@ -26,6 +26,8 @@ test("banner escapes editor text and drops unsafe links", () => {
 	assert.doesNotMatch(html, /javascript:/);
 	assert.match(html, /Yes &amp; go/);
 	assert.match(html, / hidden>/, "hidden until the script decides, so no flash for returning visitors");
+	// [hidden] must beat `.cmsc-prefs{display:grid}` (same specificity, later rule), or preferences show on first visit
+	assert.match(html, /#cms-consent \[hidden\]\{display:none!important\}/);
 });
 
 test("banner carries revision and consent-mode flag for the client script", () => {

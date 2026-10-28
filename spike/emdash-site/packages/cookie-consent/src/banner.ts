@@ -94,7 +94,7 @@ export function renderBanner(s: ConsentSettings): string {
 // Accept and reject share one style: UK/EU guidance expects rejecting to be as easy as accepting.
 // Site tokens are used when the theme defines them.
 const STYLES = `#cms-consent{position:fixed;z-index:2147483000;left:1rem;right:1rem;bottom:1rem;max-width:44rem;margin:0 auto;padding:1.25rem;border-radius:.75rem;background:var(--color-surface,#fff);color:var(--color-text,#111);border:1px solid var(--color-border,#ddd);box-shadow:0 10px 30px rgba(0,0,0,.18);font:inherit;font-size:.95rem;line-height:1.5}
-#cms-consent[hidden],#cms-consent [hidden]{display:none}
+#cms-consent[hidden],#cms-consent [hidden]{display:none!important}
 #cms-consent.cmsc-bottom-left{right:auto;max-width:26rem;margin:0}
 #cms-consent p{margin:0 0 .75rem}
 #cms-consent .cmsc-title{font-weight:600;font-size:1.05rem}

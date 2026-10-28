@@ -267,6 +267,7 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - a returning visitor sees no banner;
     - Accept and Reject have identical computed styles;
     - the banner picks up the theme tokens.
+  - **Bug found by screenshot, then fixed:** preferences showed expanded on first visit. `#cms-consent .cmsc-prefs{display:grid}` tied on specificity with `#cms-consent [hidden]{display:none}` and came later, so it won. Fixed with `!important` on `[hidden]`, plus a regression test. The earlier check read the `hidden` property instead of the computed `display`; visual checks need computed styles or a screenshot.
 - **F26 🟠 Slider blocks can't use the media picker per slide.** Block Kit `repeater` sub-fields are limited to text, number, select and toggle (`RepeaterSubField`). A repeater of slides therefore takes image URLs as text; `media_picker` only works as a top-level block field. **Upstream candidate:** allow `media_picker` in repeaters.
   - **`slider` built** (`packages/slider`, trusted, because `componentsEntry` is native-only):
     - the block's form is declared on the descriptor, and the admin manifest serves it;
@@ -284,7 +285,11 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - autoplay advances and wraps;
     - Previous, the dots, Next (wrapping) and the arrow keys all move the slider, with `aria-current` and `inert` following;
     - any interaction stops autoplay and removes the pause button.
-  - **Not yet checked:** the admin's Block Kit modal (inserting and editing a slider by hand).
+  - **Admin flow (by hand, in Playwright):**
+    - typing `/slid` in the editor offers "Slider" with its description;
+    - the "Insert Slider" modal shows the repeater (Add Slide, six fields per slide), the autoplay switch, seconds and height;
+    - Insert, Save, then "Publish now" (with a confirmation dialog) stores `{ _type: "slider", slides: [...], autoplay: true, interval: 6, height: "medium" }`, exactly the shape the renderer normalises;
+    - the public page shows both slides, the heading, the `/contact` button and autoplay at 6000 ms.
   - **Test-setup note:** the `wptest` container keeps uploads inside the container (no volume), so recreating it loses media files and the test images return 404. Give test and real sites a volume for `UPLOADS_DIR` (the compose `emdash` service has one).
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.
