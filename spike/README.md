@@ -49,6 +49,18 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   - On Postgres, seeding logs `Full-text search is only available with SQLite databases` for posts and pages.
   - The template's `/search` still renders but returns nothing.
   - Opening for us: a Postgres search provider (tsvector/pg_trgm).
+  - **🟢 Resolved by `@astro-cms/pg-search`** (milestone 6). There's no pluggable search seam in EmDash, so a patch makes `searchWithDb`, `searchCollection` and `getSuggestions` hand off on Postgres, and makes `enableSearch`/`disableSearch` record the setting instead of throwing.
+    - Search builds a weighted tsvector per query from the searchable fields (Portable Text via `jsonb_path_query(..., 'strict $.**.text')`). It ranks with `ts_rank`, makes snippets with `ts_headline`, escapes them, and adds `<mark>`.
+    - **Live test 23/23:**
+      - enabling search;
+      - title-first ranking; prefix, phrase and multi-word AND; the collections filter;
+      - four hostile or empty queries;
+      - cursor pagination; suggestions;
+      - drafts hidden; publish searchable immediately; snippet escaping;
+      - template `/search`, the MCP `search` tool, disable/enable, and trash.
+    - **Bench:** 6,000 posts took 3.2 s for a common word and 1.3 s for a rare one (about 0.5 ms per entry). Fine for agency sites; past roughly 1,000 entries, add a trigger-maintained tsvector table with a GIN index.
+    - `ts_headline` drops tags from content itself, so `<script>` text never reaches a snippet.
+    - **Upstream candidate:** a search-provider interface in EmDash, so this doesn't need a patch.
 - **F3 🟠 Other values are also fixed at build time, including the storage directory.**
   - Setting it through env at runtime does nothing, so uploads silently go to the container's temporary filesystem unless the path is fixed at build time.
   - Rule for our distribution: one image per environment, or patch EmDash to resolve config at runtime.

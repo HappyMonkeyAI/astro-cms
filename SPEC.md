@@ -58,7 +58,7 @@ Agency machine:  astro-cms CLI  ── new site · OAuth provisioning · wp-migr
 | `@astro-cms/patches` | build script | Apply and verify EmDash patches; **fail the build** if a target string isn't found (detects upstream drift) | `patch-emdash.mjs`: F11, F18 |
 | `@astro-cms/auth-password` | auth provider | Password setup, login, invite acceptance; later email-code 2FA and password reset | Built, 7 tests (F9, F20) |
 | `@astro-cms/email-smtp` | native plugin | `email:deliver` via nodemailer, `SMTP_URL` read at send time | Built (F20) |
-| `@astro-cms/pg-search` | native plugin | Postgres full-text search (tsvector + pg_trgm) to replace SQLite-only FTS | Not started (F2) |
+| `@astro-cms/pg-search` | package + patch | Postgres full-text search (on-the-fly weighted tsvector) behind EmDash's own search functions | **Built** (F2): `search()`, the search and suggest APIs and the MCP tool work on Postgres. 6 unit tests, live test 23/23. About 0.5 ms per entry, so an index table is needed past roughly 1,000 entries |
 | `@astro-cms/wp-migrate` | Node CLI | WXR preflight, prepare (pre-import passes) and post-import fix-ups (§5.2) | All §5.2 passes done, plus `migrate` (one command) and `check` (go-live); 39 tests. Awaiting a real client export |
 | `migration-guard` | sandboxed plugin | Scan for WP leftovers, block publishing while they remain, issues admin page and MCP tools | Built, 6 tests (F16) |
 | `agent-guard` | sandboxed plugin | Publish approval for agent-originated changes, audit log of agent actions | Done: revision-fenced approvals, 7 tests, live test 13/13 |
@@ -159,6 +159,14 @@ EmDash's MCP server is the interface. We don't build our own (F14).
 ### 5.5 Search
 
 `pg-search` gives the site template's `/search` results on Postgres (F2).
+
+**Status: built.** A patch makes EmDash's `searchWithDb`, `searchCollection` and `getSuggestions` hand off to `@astro-cms/pg-search` on Postgres, and `enableSearch` and `disableSearch` record the setting instead of throwing.
+- Every caller works unchanged: the template's `search()`, `/_emdash/api/search`, `/suggest` and the MCP `search` tool.
+- Results keep EmDash's shapes, cursors and `<mark>`-only snippets.
+- **No index to sync:** each query builds a weighted tsvector from the searchable fields, so publish, unpublish and trash take effect immediately.
+- **Cost:** linear, about 0.5 ms per published entry (500 entries ≈ 270 ms; 6,000 entries ≈ 1.3–3.2 s).
+- **v0.2, for large sites:** a trigger-maintained tsvector table per collection with a GIN index.
+- **Existing sites** enable search once with `POST /_emdash/api/search/enable`. New and imported sites enable it automatically.
 
 ### 5.6 Plugins: first-party catalogue and authoring kit
 

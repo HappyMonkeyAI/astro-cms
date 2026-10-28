@@ -30,6 +30,7 @@
     "@astro-cms/email-smtp": "file:packages/email-smtp",
     "@astro-cms/cookie-consent": "file:packages/cookie-consent",
     "@astro-cms/slider": "file:packages/slider",
+    "@astro-cms/pg-search": "file:packages/pg-search",
     "@astro-cms/runtime-config": "file:packages/runtime-config",
     "nodemailer": "10.2.1"
   },

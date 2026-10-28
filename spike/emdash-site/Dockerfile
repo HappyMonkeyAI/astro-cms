@@ -26,6 +26,8 @@ COPY --from=builder /app/plugins/migration-guard/dist ./plugins/migration-guard/
 COPY --from=builder /app/plugins/migration-guard/package.json /app/plugins/migration-guard/emdash-plugin.jsonc ./plugins/migration-guard/
 COPY --from=builder /app/plugins/agent-guard/dist ./plugins/agent-guard/dist
 COPY --from=builder /app/plugins/agent-guard/package.json /app/plugins/agent-guard/emdash-plugin.jsonc ./plugins/agent-guard/
+# Patched emdash modules import @astro-cms/pg-search at runtime too (node_modules link to packages/)
+COPY --from=builder /app/packages/pg-search ./packages/pg-search
 RUN mkdir -p /app/data/uploads
 ENV HOST=0.0.0.0
 ENV PORT=4321
