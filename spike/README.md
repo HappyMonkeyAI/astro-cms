@@ -257,7 +257,16 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - Consent Mode v2 defaults go in `<head>`;
     - disabling the banner removes it;
     - it never appears in the admin.
-  - **Not yet checked in a real browser:** the banner's click behaviour, the consent cookie and activation of gated scripts. browseros-neo was offline and memory was low.
+  - **Browser check (Playwright, Chromium):**
+    - first visit: the banner shows, and gated scripts stay inert;
+    - Reject sets `cms_consent=1:` and runs nothing;
+    - a `#cookie-settings` link reopens the banner with preferences expanded;
+    - saving "analytics" runs only the analytics script;
+    - Accept all then runs marketing, without running analytics again;
+    - each choice fires `cms:consent`;
+    - a returning visitor sees no banner;
+    - Accept and Reject have identical computed styles;
+    - the banner picks up the theme tokens.
 - **F26 🟠 Slider blocks can't use the media picker per slide.** Block Kit `repeater` sub-fields are limited to text, number, select and toggle (`RepeaterSubField`). A repeater of slides therefore takes image URLs as text; `media_picker` only works as a top-level block field. **Upstream candidate:** allow `media_picker` in repeaters.
   - **`slider` built** (`packages/slider`, trusted, because `componentsEntry` is native-only):
     - the block's form is declared on the descriptor, and the admin manifest serves it;
@@ -270,6 +279,12 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - text is escaped; alt text, lazy loading, height and the autoplay interval are applied;
     - the controls stay hidden until the script runs;
     - the script bundle ships, and the surrounding text still renders.
-  - **Not yet checked:** interaction in a real browser, and the admin's Block Kit modal (inserting and editing a slider by hand).
+  - **Browser check (Playwright, Chromium):**
+    - the controls appear once the script runs;
+    - autoplay advances and wraps;
+    - Previous, the dots, Next (wrapping) and the arrow keys all move the slider, with `aria-current` and `inert` following;
+    - any interaction stops autoplay and removes the pause button.
+  - **Not yet checked:** the admin's Block Kit modal (inserting and editing a slider by hand).
+  - **Test-setup note:** the `wptest` container keeps uploads inside the container (no volume), so recreating it loses media files and the test images return 404. Give test and real sites a volume for `UPLOADS_DIR` (the compose `emdash` service has one).
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

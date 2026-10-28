@@ -17,3 +17,5 @@ client_secret*.json
 
 # Client data (WordPress exports, uploads, migration output): never commit
 client-data/
+
+.playwright-mcp/
