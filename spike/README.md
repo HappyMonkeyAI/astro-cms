@@ -258,6 +258,18 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - disabling the banner removes it;
     - it never appears in the admin.
   - **Not yet checked in a real browser:** the banner's click behaviour, the consent cookie and activation of gated scripts. browseros-neo was offline and memory was low.
-- **F26 🟠 Slider blocks can't use the media picker per slide.** Block Kit `repeater` sub-fields are limited to text, number, select and toggle (`RepeaterSubField`). A repeater of slides therefore takes image URLs as text; `media_picker` only works as a top-level block field.
+- **F26 🟠 Slider blocks can't use the media picker per slide.** Block Kit `repeater` sub-fields are limited to text, number, select and toggle (`RepeaterSubField`). A repeater of slides therefore takes image URLs as text; `media_picker` only works as a top-level block field. **Upstream candidate:** allow `media_picker` in repeaters.
+  - **`slider` built** (`packages/slider`, trusted, because `componentsEntry` is native-only):
+    - the block's form is declared on the descriptor, and the admin manifest serves it;
+    - the editor saves field values flat on the Portable Text node (`{ _type: "slider", slides, autoplay, interval, height }`);
+    - EmDash's `<PortableText>` merges the plugin's `blockComponents`, so sites need no template change;
+    - an `.astro` component in a `file:` package compiles fine (`keywords: ["astro-component"]`, `astro` peer dependency).
+  - **Live test 13/13:**
+    - a block created through MCP is stored intact;
+    - it renders as a labelled carousel with two safe slides, dropping a `javascript:` image and link;
+    - text is escaped; alt text, lazy loading, height and the autoplay interval are applied;
+    - the controls stay hidden until the script runs;
+    - the script bundle ships, and the surrounding text still renders.
+  - **Not yet checked:** interaction in a real browser, and the admin's Block Kit modal (inserting and editing a slider by hand).
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

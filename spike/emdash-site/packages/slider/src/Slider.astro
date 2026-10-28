@@ -1,0 +1,218 @@
+---
+/**
+ * Slider block renderer.
+ *
+ * Without JavaScript it's a horizontally scrollable, snap-aligned strip, so every slide stays reachable.
+ * The script adds previous/next buttons, slide dots and optional autoplay, which pauses on hover and
+ * focus, stops for good once the visitor takes control, and never runs under prefers-reduced-motion.
+ */
+import { normalizeSlider } from "./block.ts";
+
+interface Props {
+	node: Record<string, unknown> & { _key?: string };
+}
+
+const { node } = Astro.props;
+const data = normalizeSlider(node);
+if (data.slides.length === 0) return null;
+const id = `slider-${String(node?._key ?? Math.random().toString(36).slice(2)).replace(/[^\w-]/g, "")}`;
+const many = data.slides.length > 1;
+---
+
+<section
+	class:list={["cms-slider", `cms-slider--${data.height}`]}
+	aria-roledescription="carousel"
+	aria-label={data.slides[0]?.heading || "Slideshow"}
+	data-cms-slider
+	data-autoplay={data.autoplay ? String(data.interval) : undefined}
+>
+	<div class="cms-slider__track" id={id} tabindex="0" aria-live={data.autoplay ? "off" : "polite"}>
+		{
+			data.slides.map((slide, i) => (
+				<div class="cms-slider__slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${data.slides.length}`}>
+					<img src={slide.image} alt={slide.alt} loading={i === 0 ? "eager" : "lazy"} decoding="async" />
+					{(slide.heading || slide.text || slide.link) && (
+						<div class="cms-slider__caption">
+							{slide.heading && <p class="cms-slider__heading">{slide.heading}</p>}
+							{slide.text && <p class="cms-slider__text">{slide.text}</p>}
+							{slide.link && (
+								<a class="cms-slider__button" href={slide.link}>
+									{slide.linkLabel}
+								</a>
+							)}
+						</div>
+					)}
+				</div>
+			))
+		}
+	</div>
+	{
+		many && (
+			<div class="cms-slider__controls" hidden>
+				<button type="button" class="cms-slider__nav" data-dir="-1" aria-controls={id} aria-label="Previous slide">‹</button>
+				<div class="cms-slider__dots">
+					{data.slides.map((_, i) => (
+						<button type="button" class="cms-slider__dot" data-index={i} aria-controls={id} aria-label={`Go to slide ${i + 1}`} />
+					))}
+				</div>
+				<button type="button" class="cms-slider__nav" data-dir="1" aria-controls={id} aria-label="Next slide">›</button>
+				{data.autoplay && <button type="button" class="cms-slider__pause" aria-label="Pause slideshow">❚❚</button>}
+			</div>
+		)
+	}
+</section>
+
+<style>
+	.cms-slider {
+		position: relative;
+		margin: 2rem 0;
+		--slider-h: 26rem;
+	}
+	.cms-slider--short { --slider-h: 18rem; }
+	.cms-slider--tall { --slider-h: 36rem; }
+	.cms-slider__track {
+		display: flex;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		scrollbar-width: none;
+		border-radius: var(--radius-lg, 0.75rem);
+	}
+	.cms-slider__track::-webkit-scrollbar { display: none; }
+	.cms-slider__track:focus-visible { outline: 2px solid var(--color-brand-ring, #2563eb); outline-offset: 3px; }
+	.cms-slider__slide {
+		position: relative;
+		flex: 0 0 100%;
+		height: min(var(--slider-h), 70vh);
+		scroll-snap-align: start;
+		background: var(--color-fill, #eee);
+	}
+	.cms-slider__slide img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+		margin: 0;
+	}
+	.cms-slider__caption {
+		position: absolute;
+		inset: auto 0 0 0;
+		padding: 2.5rem 1.5rem 1.5rem;
+		color: #fff;
+		background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+	}
+	.cms-slider__heading { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
+	.cms-slider__text { margin: 0 0 0.75rem; max-width: 40rem; }
+	.cms-slider__button {
+		display: inline-block;
+		padding: 0.5rem 1rem;
+		border-radius: var(--radius, 0.5rem);
+		background: var(--color-brand, #111);
+		color: var(--color-on-brand, #fff);
+		text-decoration: none;
+		font-weight: 500;
+	}
+	.cms-slider__controls {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		margin-top: 0.75rem;
+	}
+	.cms-slider__controls[hidden] { display: none; }
+	.cms-slider__nav, .cms-slider__pause {
+		cursor: pointer;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 50%;
+		border: 1px solid var(--color-border, #ccc);
+		background: var(--color-surface, #fff);
+		color: var(--color-text, #111);
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+	.cms-slider__pause { font-size: 0.7rem; }
+	.cms-slider__dots { display: flex; gap: 0.4rem; }
+	.cms-slider__dot {
+		cursor: pointer;
+		width: 0.65rem;
+		height: 0.65rem;
+		padding: 0;
+		border-radius: 50%;
+		border: 1px solid var(--color-text, #111);
+		background: transparent;
+	}
+	.cms-slider__dot[aria-current="true"] { background: var(--color-text, #111); }
+	.cms-slider button:focus-visible { outline: 2px solid var(--color-brand-ring, #2563eb); outline-offset: 2px; }
+	@media (prefers-reduced-motion: reduce) {
+		.cms-slider__track { scroll-behavior: auto; }
+	}
+</style>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>("[data-cms-slider]")) {
+		const track = root.querySelector<HTMLElement>(".cms-slider__track");
+		const controls = root.querySelector<HTMLElement>(".cms-slider__controls");
+		if (!track || !controls) continue;
+		const slides = Array.from(track.children) as HTMLElement[];
+		const dots = Array.from(root.querySelectorAll<HTMLButtonElement>(".cms-slider__dot"));
+		const pause = root.querySelector<HTMLButtonElement>(".cms-slider__pause");
+		controls.hidden = false;
+
+		const current = () => Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+		const go = (i: number) => {
+			const n = (i + slides.length) % slides.length;
+			track.scrollTo({ left: n * track.clientWidth });
+		};
+		const mark = () => {
+			const i = current();
+			dots.forEach((d, j) => d.setAttribute("aria-current", String(i === j)));
+			slides.forEach((s, j) => s.toggleAttribute("inert", i !== j));
+		};
+		let frame = 0;
+		track.addEventListener("scroll", () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(mark);
+		});
+		mark();
+
+		let timer: number | undefined;
+		let stopped = false;
+		const interval = Number(root.dataset.autoplay);
+		const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		const play = () => {
+			if (!interval || reduced || stopped || timer) return;
+			timer = window.setInterval(() => go(current() + 1), interval);
+		};
+		const hold = () => {
+			window.clearInterval(timer);
+			timer = undefined;
+		};
+		const stop = () => {
+			stopped = true;
+			hold();
+			pause?.remove();
+		};
+
+		root.addEventListener("click", (e) => {
+			const target = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
+			if (!target) return;
+			if (target === pause) return stop();
+			stop();
+			if (target.dataset.dir) go(current() + Number(target.dataset.dir));
+			else if (target.dataset.index) go(Number(target.dataset.index));
+		});
+		track.addEventListener("keydown", (e) => {
+			if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+			e.preventDefault();
+			stop();
+			go(current() + (e.key === "ArrowRight" ? 1 : -1));
+		});
+		root.addEventListener("mouseenter", hold);
+		root.addEventListener("mouseleave", play);
+		root.addEventListener("focusin", hold);
+		root.addEventListener("focusout", play);
+		if (reduced) pause?.remove();
+		play();
+	}
+</script>
