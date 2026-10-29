@@ -7,7 +7,7 @@ import type { McpClient } from "../src/mcp-client.ts";
 import { describePrepared, prepareExport } from "../src/prepare.ts";
 import type { RestClient } from "../src/rest-client.ts";
 
-function site(opts: { pluginIssues?: unknown[]; entries?: { slug: string; data: unknown; draftRevisionId?: string }[]; pluginMissing?: boolean }) {
+function site(opts: { pluginIssues?: unknown[]; entries?: { slug: string; data: unknown; draftRevisionId?: string }[]; pluginMissing?: boolean; scanError?: string }) {
 	const posted: { path: string; body: unknown }[] = [];
 	const rest: RestClient = {
 		async get() {
@@ -16,6 +16,7 @@ function site(opts: { pluginIssues?: unknown[]; entries?: { slug: string; data: 
 		async post(path, body) {
 			posted.push({ path, body });
 			if (opts.pluginMissing) throw new Error("POST /plugins/migration-guard/scan -> 404");
+			if (opts.scanError) throw new Error(opts.scanError);
 			return path.endsWith("/scan") ? { ok: true, scanned: opts.entries?.length ?? 0 } : { ok: true, items: opts.pluginIssues ?? [] };
 		},
 	};
@@ -63,6 +64,16 @@ test("published entries with unpublished changes are listed for review without b
 
 test("a site without migration-guard fails loudly instead of reporting ready", async () => {
 	await assert.rejects(goLiveCheck({ ...site({ pluginMissing: true }), legacyHosts: [] }), /migration-guard isn't available/);
+});
+
+test("a scan that errors is reported as a scan failure, not a missing plugin", async () => {
+	const scanError = "POST /plugins/migration-guard/scan -> 400: duplicate key value violates unique constraint";
+	await assert.rejects(goLiveCheck({ ...site({ scanError }), legacyHosts: [] }), /^Error: migration-guard scan failed, .*duplicate key/);
+});
+
+test("go-live issues use the entry slug migration-guard records", async () => {
+	const report = await goLiveCheck({ ...site({ pluginIssues: [{ collection: "pages", entryId: "01X", entrySlug: "about", shortcodes: { gallery: 1 }, legacyUrls: 0 }] }), legacyHosts: [] });
+	assert.deepEqual(report.issues, [{ collection: "pages", slug: "about", problem: "1× [gallery]" }]);
 });
 
 test("prepareExport on the theme unit test data gathers every pass input", () => {

@@ -21,6 +21,14 @@
  *     suggest APIs and the MCP search tool return nothing, and enabling search throws. On
  *     Postgres, hand off to @astro-cms/pg-search (tsvector, same result shapes), and let
  *     enable/disable record the setting instead of throwing.
+ *
+ * F30 (plugin unique indexes): a plugin's `uniqueIndexes` become a unique index over the
+ *     whole shared _plugin_storage table on (plugin_id, collection, data.field) with no WHERE
+ *     clause, so it also applies to every other plugin's rows. Once the forms plugin declares
+ *     `slug` unique, any two rows in any plugin collection with the same `slug` value collide
+ *     (migration-guard's scan failed on two entries sharing a slug). Make unique indexes
+ *     partial, scoped to their own plugin and collection, under a new name so the existing
+ *     unscoped index is dropped as an orphan.
  */
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
@@ -106,6 +114,26 @@ const __pgHelpers = () => ({ localeMatches, resolveConfiguredLocale, encodeSearc
 			await this.setSearchConfig(collectionSlug, { enabled: true, weights: options?.weights ?? existing?.weights, tokenize: options?.tokenize ?? existing?.tokenize });
 			return;
 		} ${MARK}`,
+	},
+	{
+		id: "F30 scoped unique storage indexes (name)",
+		dir: "node_modules/emdash/dist",
+		file: /^api-.*\.mjs$/,
+		// New name, so orphan cleanup drops the old unscoped index on existing sites
+		target: "return `${options?.unique ? \"uidx\" : \"idx\"}_plugin_",
+		replacement: "return `${options?.unique ? \"suidx\" : \"idx\"}_plugin_",
+	},
+	{
+		id: "F30 scoped unique storage indexes (where)",
+		dir: "node_modules/emdash/dist",
+		file: /^api-.*\.mjs$/,
+		target: `	return sql\`\${sql.raw(createKeyword)} IF NOT EXISTS \${sql.ref(indexName)}
+		ON _plugin_storage(plugin_id, collection, \${sql.raw(expressions)})
+	\`;`,
+		replacement: `	const scope = options?.unique ? \` WHERE plugin_id = '\${pluginId.replace(/'/g, "''")}' AND collection = '\${collection.replace(/'/g, "''")}'\` : ""; ${MARK}
+	return sql\`\${sql.raw(createKeyword)} IF NOT EXISTS \${sql.ref(indexName)}
+		ON _plugin_storage(plugin_id, collection, \${sql.raw(expressions)})\${sql.raw(scope)}
+	\`;`,
 	},
 	{
 		id: "F2 disableSearch on Postgres",

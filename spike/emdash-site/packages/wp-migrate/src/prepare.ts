@@ -92,7 +92,7 @@ export function describePrepared(prepared: PreparedExport): string[] {
 		...preflight.protected.map((i) => `    - [${i.reason}] ${i.type} "${i.title}" (/${i.slug}, was ${i.originalStatus})`),
 		`  ${converted.length} shortcode(s) will be converted: ${byKind.map(([k, n]) => `${n} ${k}`).join(", ") || "none"}`,
 		`  ${preflight.decodedSlugs.length} percent-encoded slug(s) will be decoded (EmDash can't serve them encoded)`,
-		`  ${menus.length} menu(s): ${menus.map((m) => `${m.slug} (${m.items.length})`).join(", ") || "none"}${menus.length ? ` (site menu: --assign primary=${menus[0].slug})` : ""}`,
+		`  ${menus.length} menu(s): ${menus.map((m) => `${m.slug} (${m.items.length})`).join(", ") || "none"}${menus.length ? ` (none assigned yet; to use one as the site menu: --assign primary=<slug>, e.g. primary=${menus[0].slug})` : ""}`,
 		`  legacy hosts: ${preflight.legacyHosts.join(", ") || "none found"}`,
 		...(preflight.rehosted ? [`  rewrote ${preflight.rehosted.replacements} URL(s) from ${preflight.rehosted.from} to ${preflight.rehosted.to}`] : []),
 		...privateHostWarning(preflight),

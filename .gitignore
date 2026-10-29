@@ -19,3 +19,6 @@ client_secret*.json
 client-data/
 
 .playwright-mcp/
+
+# Throwaway test sites (credentials)
+.throwaway/

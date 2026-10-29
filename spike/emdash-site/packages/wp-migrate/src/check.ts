@@ -37,14 +37,17 @@ export async function goLiveCheck(options: { rest: RestClient; mcp: McpClient; l
 	try {
 		scan = await rest.post(`${PLUGIN}/scan`, { legacyHosts });
 	} catch (error) {
-		throw new Error(`migration-guard isn't available on this site, so the go-live check can't run: ${error instanceof Error ? error.message : error}`);
+		const message = error instanceof Error ? error.message : String(error);
+		// Only a missing route means the plugin isn't installed; anything else is a scan failure
+		if (/-> 404\b/.test(message)) throw new Error(`migration-guard isn't available on this site, so the go-live check can't run: ${message}`);
+		throw new Error(`migration-guard scan failed, so the go-live check can't run: ${message}`);
 	}
 	if (!scan.ok) throw new Error(`migration-guard scan failed: ${scan.error ?? "unknown error"}`);
 
 	const issues: GoLiveIssue[] = [];
 	const found = await rest.post(`${PLUGIN}/issues`, { limit: 200 });
 	for (const item of found.items ?? []) {
-		issues.push({ collection: item.collection, slug: item.slug ?? item.entryId, problem: describeIssue(item) });
+		issues.push({ collection: item.collection, slug: item.entrySlug ?? item.slug ?? item.entryId, problem: describeIssue(item) });
 	}
 
 	const pendingDrafts: GoLiveReport["pendingDrafts"] = [];

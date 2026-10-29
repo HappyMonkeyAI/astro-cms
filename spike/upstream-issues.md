@@ -1,6 +1,6 @@
 # Draft upstream issues for emdash-cms/emdash
 
-Status: **drafts for review.** Drafts 1–3 are being filed by the user. Drafts 4–6 are new drafts for review and have not yet been checked against existing issues. Drafts 1–3 were checked against existing issues on 2026-10-27; related ones are linked. Reproduced on emdash 1.3.1, Astro 7.4.2, `@astrojs/node` standalone, Node 24, Docker (`node:24-bookworm-slim`), Postgres 17.
+Status: **drafts for review.** Drafts 1–3 are being filed by the user. Drafts 4–7 are new drafts for review and have not yet been checked against existing issues. Drafts 1–3 were checked against existing issues on 2026-10-27; related ones are linked. Reproduced on emdash 1.3.1, Astro 7.4.2, `@astrojs/node` standalone, Node 24, Docker (`node:24-bookworm-slim`), Postgres 17.
 
 ---
 
@@ -201,3 +201,47 @@ This matters most after a migration. A WXR import creates no redirects (0 after 
 ### Our workaround
 
 The wp-migrate package has a redirects pass that writes the old-permalink-to-new-URL map through the REST endpoint directly. On the theme unit test data it created 76 redirects, and all 76 old permalinks now return 301 and then 200. The same operations would let an agent manage redirects once they exist as MCP tools.
+
+---
+
+## 7. Plugin `uniqueIndexes` are not scoped to the plugin: they constrain every plugin's storage rows
+
+**Labels:** bug, plugins, database
+
+### Description
+
+`generateCreateIndexSql` (src/plugins/storage-indexes.ts) builds a unique index as:
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS "uidx_plugin_<plugin>_<collection>_<field>"
+  ON _plugin_storage(plugin_id, collection, (data::jsonb->>'<field>'))
+```
+
+There is no `WHERE plugin_id = '<plugin>' AND collection = '<collection>'`. Because `_plugin_storage` holds every plugin's rows, the uniqueness applies to all of them: any two rows in the same collection of *any* plugin that carry the same value in that JSON field now collide. Non-unique indexes have the same shape, which is only a size and performance cost, but for unique indexes it changes behaviour.
+
+`@emdash-cms/plugin-forms` declares `uniqueIndexes: ["slug"]` on `forms`, so installing it breaks every other plugin that stores a `slug` field and has two rows with the same value. Common examples are an audit log that records the entry slug, or one record per entry when two collections contain the same slug.
+
+### Steps to reproduce
+
+1. Install `@emdash-cms/plugin-forms` on a fresh site (Postgres or SQLite).
+2. In another plugin, `ctx.storage.log.put("a", { slug: "about" })`, then `put("b", { slug: "about" })`.
+3. The second put fails: `duplicate key value violates unique constraint "uidx_plugin_emdash-forms_forms_slug"`.
+
+On a site whose storage already has such rows, the reverse happens: the unique index can't be created, `syncDeclaredStorageIndexes` only logs `Failed to sync storage index …`, and the forms plugin's slug uniqueness is silently not enforced.
+
+### Suggested fix
+
+Make the unique index partial on both dialects (Postgres and SQLite both support partial indexes):
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS "<name>"
+  ON _plugin_storage(plugin_id, collection, (<expr>))
+  WHERE plugin_id = '<plugin>' AND collection = '<collection>'
+```
+
+Both values are already validated before interpolation. Existing sites need the unscoped index dropped and recreated. Changing the generated name, so the old one is removed as an orphan, does that for free.
+
+### Our workaround
+
+A build-time patch applies exactly that: partial unique indexes under a `suidx_` prefix. On an existing site, `removeOrphanedIndexes` then drops the old index. Our own plugin also stores the entry slug as `entrySlug`, so it no longer relies on other plugins' declarations.
+

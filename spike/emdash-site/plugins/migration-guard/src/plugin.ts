@@ -14,7 +14,7 @@ import { hasIssues, isNoWorse, normaliseHosts, scanData, summarise, type ScanRes
 interface IssueRecord extends ScanResult {
 	collection: string;
 	entryId: string;
-	slug: string | null;
+	entrySlug: string | null;
 	title: string;
 	scannedAt: string;
 }
@@ -23,7 +23,7 @@ interface PublishLogRecord {
 	at: string;
 	collection: string;
 	entryId: string | null;
-	slug: string | null;
+	entrySlug: string | null;
 	origin: string;
 	actorId: string | null;
 	decision: "allowed" | "rejected";
@@ -68,7 +68,7 @@ async function recordScan(
 			...result,
 			collection,
 			entryId: item.id,
-			slug: item.slug,
+			entrySlug: item.slug,
 			title: asString(item.data.title) ?? item.slug ?? item.id,
 			scannedAt: new Date().toISOString(),
 		});
@@ -229,7 +229,7 @@ const plugin: SandboxedPlugin = {
 				at: new Date().toISOString(),
 				collection: event.collection,
 				entryId: asString(content.id),
-				slug: asString(content.slug),
+				entrySlug: asString(content.slug),
 				origin,
 				actorId: event.actor?.id ?? null,
 				decision: rejected ? "rejected" : "allowed",

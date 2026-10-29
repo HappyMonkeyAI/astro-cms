@@ -327,5 +327,19 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - with a recipient set, the notification arrived in Mailpit;
     - a re-run created no duplicate forms and stayed READY.
   - The site needs `import "@emdash-cms/plugin-forms/styles"` in its layout for basic form styling. Unit tests 6/6 (`wp-migrate` 57/57). The admin form builder wasn't checked in a browser.
+- **F30 🔴→🟢 A plugin's unique index applies to every plugin's storage (patched).** The pilot retest stopped at the go-live check: the migration-guard scan returned 400 with `duplicate key value violates unique constraint "uidx_plugin_emdash-forms_forms_slug"`. Handoff: [`results/pilot-retest-handoff.md`](results/pilot-retest-handoff.md).
+  - **Cause (EmDash core):** a plugin's `uniqueIndexes` becomes `CREATE UNIQUE INDEX … ON _plugin_storage(plugin_id, collection, data->>'slug')` with no `WHERE` clause. The table is shared by every plugin, so the index constrains every plugin's rows. The forms plugin declares `slug` unique on its `forms` collection, so two rows in *any* plugin collection carrying the same `slug` value now collide.
+  - **Two symptoms:**
+    - **Fresh site:** the index is created while the table is empty, then plugin writes fail. Migration-guard's scan failed as soon as two flagged entries shared a slug (a page and a post both called "contact", say), and its publish log fails the second time an entry is published.
+    - **Existing site:** the index can't be built over rows that already share a slug, and the error is only logged (`Failed to sync storage index …`), so form slugs are never actually unique.
+  - **Fix:** a spike patch (`scripts/patch-emdash.mjs`) makes unique indexes partial (`WHERE plugin_id = … AND collection = …`) under a new `suidx_` name, so EmDash's orphan cleanup drops the old unscoped index. Upstream draft 7.
+  - **Live test (rebuilt image), 12/12:**
+    - On an existing site whose rows already shared slugs, the scoped index is built and no sync failure is logged.
+    - A planted old unscoped index is dropped on upgrade.
+    - `migrate` runs its go-live check with no scan error, and it flags a page and a post that share a slug.
+    - Another plugin can store rows sharing a slug, and form slugs are still unique.
+    - The standalone `check` works.
+  - **Timing:** EmDash syncs plugin storage indexes on the first scheduler tick after the process starts, about a minute after boot, not at boot itself.
+  - **Also:** migration-guard now stores `entrySlug` rather than a top-level `slug`, so it never depends on another plugin's index. The go-live check now reports a scan error as a scan failure; only a 404 means the plugin is missing. The `--assign` hint in `prepare` no longer reads as if a menu had already been assigned.
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.
