@@ -20,7 +20,7 @@ docker compose down -v           # wipe the database and uploads
 |---|---|---|
 | 1 | Run on Node + Postgres in Docker | ✅ Works, with 3 serious caveats (F1–F3) |
 | 2a | WordPress import: theme unit test data (`fixtures/themeunittestdata.wordpress.xml`) | ✅ Done. Content imports cleanly, but migration fidelity has major gaps (F11–F13). Reports: `results/` |
-| 2b | WordPress import: a real client WXR export | ⏳ Needs a file |
+| 2b | WordPress import: a real client WXR export | ✅ Done (2026-10-28). Go-live **NOT READY** (form shortcodes + staging-localhost legacy hosts). Handoff: [`results/pilot-dev-handoff.md`](results/pilot-dev-handoff.md). Confidential detail: gitignored `client-data/pilot-report.md` |
 | 3 | Drive the site through MCP with Claude (realistic editing tasks) | ✅ Done. A strong base, with safety gaps for agency use (F14–F15). Client: `scripts/mcp.mjs`; task: `scripts/mcp-task-fix-gallery.mjs` |
 | 4 | Write a plugin + admin page | ✅ Done. `emdash-site/plugins/migration-guard`: a sandboxed (workerd) plugin with hooks, a publish policy, storage, routes, MCP tools and a Block Kit admin page (F16–F17). Also an auth provider (`packages/auth-password`, F9) |
 
