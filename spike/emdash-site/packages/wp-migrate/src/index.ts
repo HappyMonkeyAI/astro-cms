@@ -23,6 +23,9 @@ export {
 	type MediaMetadataReport,
 	type MediaUpdate,
 } from "./media-metadata.ts";
+export { convertCf7, convertJetpack, convertWpforms, FORM_POST_TYPES, FORM_SHORTCODES, readForms, removeFormItems, toFormSlug, type FormCatalog, type FormField, type FormSpec } from "./forms.ts";
+export { fixForms, type FixFormsOptions, type FormsReport } from "./fix-forms.ts";
+export { isPrivateHost, parseProductionUrl, rehostExport, rewriteSerialized, type Rehosted } from "./rehost.ts";
 export { fixMedia, type FixMediaOptions, type MediaOutcome } from "./fix-media.ts";
 export { listCollections, listEntries, listEntryIds, updateEntry, type CollectionInfo } from "./entries.ts";
 export { fixMenus, toMenuName, type FixMenusOptions, type MenuOutcome } from "./fix-menus.ts";
@@ -41,4 +44,4 @@ export { replaceMarkers, type MarkerResult, type PtBlock, type PtSpan } from "./
 export { findProtected, protectContent, type ProtectedItem, type ProtectionReason } from "./protect.ts";
 export { findShortcodes, parseAttrs, type ShortcodeMatch } from "./shortcode-parse.ts";
 export { extractShortcodes, MARKER_PATTERN, SUPPORTED_SHORTCODES, type ShortcodeData, type ShortcodeEntry } from "./shortcodes.ts";
-export { getField, isContentItem, readItems, replaceItems, setField, type WxrItem } from "./wxr.ts";
+export { getField, isContentItem, readItems, readMeta, replaceItems, setField, type WxrItem } from "./wxr.ts";

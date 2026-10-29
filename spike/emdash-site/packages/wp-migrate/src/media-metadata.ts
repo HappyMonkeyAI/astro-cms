@@ -6,7 +6,7 @@
 
 import type { McpClient } from "./mcp-client.ts";
 import type { ImportedMedia } from "./media.ts";
-import { getField, readItems } from "./wxr.ts";
+import { getField, readItems, readMeta } from "./wxr.ts";
 
 export interface AttachmentMetadata {
 	wpId: number;
@@ -100,14 +100,6 @@ export async function fixMediaMetadata(options: MediaMetadataOptions): Promise<M
 }
 
 /** `<wp:postmeta>` key/value pairs, CDATA or plain */
-function readMeta(raw: string): Map<string, string> {
-	const meta = new Map<string, string>();
-	for (const m of raw.matchAll(/<wp:postmeta>\s*<wp:meta_key>(?:<!\[CDATA\[)?([^<\]]*)(?:\]\]>)?<\/wp:meta_key>\s*<wp:meta_value>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/wp:meta_value>/g)) {
-		meta.set(m[1], m[2]);
-	}
-	return meta;
-}
-
 function stripTags(html: string): string {
 	return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ");
 }

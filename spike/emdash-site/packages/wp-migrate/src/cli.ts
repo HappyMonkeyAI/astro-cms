@@ -17,8 +17,12 @@
  *                                                      write <dir>/<name>.prepared.xml to import, plus
  *                                                      preflight.json and shortcodes.json
  *   (import the prepared file with EmDash, including media)
+ *   wp-migrate forms --prepared <dir> --base <site-url> [--dry-run]
+ *                                                      create the export's forms with the forms plugin
+ *                                                      (@emdash-cms/plugin-forms); run before fix-shortcodes
  *   wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]
  *                                                      replace shortcode markers with real blocks over MCP
+ *                                                      (form blocks use the IDs in forms-report.json)
  *                                                      (token: EMDASH_TOKEN, admin scope)
  *   wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]
  *                                                      point every legacy media URL/reference at the media library;
@@ -43,6 +47,7 @@ import { basename, join } from "node:path";
 
 import { createBaselineRevisions } from "./baseline.ts";
 import { goLiveCheck } from "./check.ts";
+import { fixForms } from "./fix-forms.ts";
 import { fixMedia } from "./fix-media.ts";
 import { fixMenus } from "./fix-menus.ts";
 import { fixRedirects } from "./fix-redirects.ts";
@@ -83,6 +88,7 @@ function usage(): never {
 			"       wp-migrate preflight <export.xml> [--production-url <url>]",
 			"       wp-migrate prepare <export.xml> --out <dir> [--production-url <url>]",
 			"       wp-migrate check --prepared <dir> --base <site-url>",
+			"       wp-migrate forms --prepared <dir> --base <site-url> [--dry-run]",
 			"       wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
 			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
 			"       wp-migrate redirects --prepared <dir> --base <site-url> [--dry-run]",
@@ -210,6 +216,25 @@ if (command === "preflight" || command === "prepare") {
 	console.log(`Menus: ${outcomes.length - failed.length} written (${outcomes.reduce((n, o) => n + o.items, 0)} items, ${outcomes.reduce((n, o) => n + o.dropped.length, 0)} dropped), ${failed.length} failed`);
 	for (const f of failed) console.log(`  ! ${f.menu}: ${f.error}`);
 	if (failed.length) process.exitCode = 1;
+} else if (command === "forms") {
+	const prepared = option("--prepared");
+	const base = option("--base");
+	const token = process.env.EMDASH_TOKEN;
+	if (!prepared || !base) usage();
+	if (!token) {
+		console.error("Set EMDASH_TOKEN to an admin-scope API token for the site.");
+		process.exit(2);
+	}
+	const report = await fixForms({
+		forms: JSON.parse(await readFile(join(prepared, "forms.json"), "utf8")),
+		rest: connectRest(base, token),
+		dryRun: args.includes("--dry-run"),
+		log: (line) => console.log(`  ${line}`),
+	});
+	await writeFile(join(prepared, "forms-report.json"), `${JSON.stringify(report, null, 2)}\n`);
+	console.log(`Forms: ${report.created.length} created, ${report.existing.length} already there, ${report.failed.length} failed`);
+	for (const r of report.toReview) for (const note of r.notes) console.log(`  ! ${r.slug}: ${note}`);
+	if (report.failed.length) process.exitCode = 1;
 } else if (command === "redirects") {
 	const prepared = option("--prepared");
 	const base = option("--base");
@@ -284,7 +309,8 @@ if (command === "preflight" || command === "prepare") {
 		if (failed.length) process.exitCode = 1;
 	} else {
 		const entries: ShortcodeEntry[] = JSON.parse(await readFile(join(prepared, "shortcodes.json"), "utf8"));
-		const outcomes = await fixShortcodes({ entries, media, mcp, dryRun, log });
+		const formIds = await readFile(join(prepared, "forms-report.json"), "utf8").then((t) => JSON.parse(t).ids, () => ({}));
+		const outcomes = await fixShortcodes({ entries, media, mcp, dryRun, log, formIds });
 		await writeFile(join(prepared, "fix-shortcodes.json"), `${JSON.stringify(outcomes, null, 2)}\n`);
 		const replaced = outcomes.reduce((n, o) => n + o.replaced, 0);
 		const stuck = outcomes.flatMap((o) => o.stuck);

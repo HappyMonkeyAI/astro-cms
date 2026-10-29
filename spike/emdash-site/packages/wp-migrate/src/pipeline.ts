@@ -1,7 +1,7 @@
 /**
  * `wp-migrate migrate`: the whole migration in order, with one report.
  *
- *   prepare → import (content + media) → shortcodes → media URLs → media metadata →
+ *   prepare → import (content + media) → forms → shortcodes → media URLs → media metadata →
  *   redirects → menus → baseline revisions → go-live check
  *
  * prepare and import are fatal (nothing after them can work); a failing later pass is
@@ -14,6 +14,7 @@ import { basename, join } from "node:path";
 
 import { createBaselineRevisions } from "./baseline.ts";
 import { goLiveCheck, type GoLiveReport } from "./check.ts";
+import { fixForms } from "./fix-forms.ts";
 import { fixMedia } from "./fix-media.ts";
 import { fixMenus } from "./fix-menus.ts";
 import { fixRedirects } from "./fix-redirects.ts";
@@ -130,8 +131,22 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			});
 		}
 
+		let formIds: Record<string, string> = {};
+		if (prepared.forms.length) {
+			await step("forms", async () => {
+				const r = await fixForms({ forms: prepared.forms, rest });
+				await save("forms-report.json", r);
+				formIds = r.ids;
+				return {
+					ok: !r.failed.length,
+					summary:
+						`${r.created.length} created, ${r.existing.length} already there, ${r.failed.length} failed` +
+						(r.toReview.length ? `; ${r.toReview.length} to review (see forms-report.json)` : ""),
+				};
+			});
+		}
 		await step("shortcodes", async () => {
-			const r = await fixShortcodes({ entries: prepared.shortcodes, media, mcp });
+			const r = await fixShortcodes({ entries: prepared.shortcodes, media, mcp, formIds });
 			await save("fix-shortcodes.json", r);
 			const stuck = r.flatMap((o) => o.stuck).length;
 			const failed = r.filter((o) => o.error).length;

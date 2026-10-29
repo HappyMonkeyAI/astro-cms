@@ -9,6 +9,7 @@ import agentGuard from "agent-guard";
 import { smtpEmail } from "@astro-cms/email-smtp";
 import { cookieConsent } from "@astro-cms/cookie-consent";
 import { slider } from "@astro-cms/slider";
+import { formsPlugin } from "@emdash-cms/plugin-forms";
 import { setupGuard } from "@astro-cms/setup-guard";
 import { google } from "emdash/auth/providers/google";
 import { microsoft } from "emdash/auth/providers/microsoft";
@@ -33,8 +34,9 @@ export default defineConfig({
 			database: postgresFromEnv(),
 			authProviders: [password(), google(), microsoft()],
 			// Trusted (native): EmDash ignores page:fragments from sandboxed plugins (cookie-consent),
-			// and block renderers (componentsEntry) are native-only (slider)
-			plugins: [smtpEmail({ from: { email: "cms@spike.example.com", name: "Spike CMS" } }), cookieConsent(), slider()],
+			// and block renderers (componentsEntry) are native-only (slider, forms).
+			// forms: EmDash's own plugin (builder, inbox, notifications through smtpEmail), not ours
+			plugins: [smtpEmail({ from: { email: "cms@spike.example.com", name: "Spike CMS" } }), cookieConsent(), slider(), formsPlugin()],
 			// Sandboxed: runs in a workerd child process on Node
 			// agent-guard: MCP publishes by non-admin (agent) accounts wait for an editor's approval
 			sandboxed: [migrationGuard, agentGuard],

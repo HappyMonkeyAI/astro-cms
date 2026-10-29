@@ -9,7 +9,7 @@
  */
 
 import { decodeSlug } from "./slugs.ts";
-import { getField, isContentItem, readItems } from "./wxr.ts";
+import { getField, isContentItem, readItems, readMeta } from "./wxr.ts";
 
 export type MenuTarget =
 	| { kind: "entry"; postType: string; slug: string }
@@ -157,14 +157,6 @@ export function planMenuItems(menu: MenuSpec, resolve: MenuResolver): { items: E
 	};
 	emit(undefined, undefined, 0);
 	return { items, dropped };
-}
-
-function readMeta(raw: string): Map<string, string> {
-	const meta = new Map<string, string>();
-	for (const m of raw.matchAll(/<wp:postmeta>\s*<wp:meta_key>(?:<!\[CDATA\[)?([^<\]]*)(?:\]\]>)?<\/wp:meta_key>\s*<wp:meta_value>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/wp:meta_value>/g)) {
-		meta.set(m[1], m[2]);
-	}
-	return meta;
 }
 
 function readTerms(xml: string): Map<number, { slug: string; name: string }> {

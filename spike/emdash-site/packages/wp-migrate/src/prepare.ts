@@ -6,6 +6,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
+import { readForms, removeFormItems, type FormSpec } from "./forms.ts";
 import { findLegacyHosts } from "./legacy-hosts.ts";
 import type { AttachmentRef } from "./local-media.ts";
 import { readAttachmentMetadata, type AttachmentMetadata } from "./media-metadata.ts";
@@ -34,6 +35,8 @@ export interface PreparedExport {
 	shortcodes: ShortcodeEntry[];
 	permalinks: Permalink[];
 	menus: MenuSpec[];
+	/** Forms to create with the forms plugin (`fix-forms.ts`) */
+	forms: FormSpec[];
 	mediaMetadata: AttachmentMetadata[];
 	/** Every attachment's original URL, for uploading from a local uploads folder */
 	attachments: AttachmentRef[];
@@ -55,9 +58,11 @@ export function prepareExport(original: string, name: string, options: PrepareOp
 	const { xml: source, rehosted } = options.productionUrl ? rehostExport(original, options.productionUrl) : { xml: original, rehosted: undefined };
 	const protectedResult = protectContent(source);
 	const slugResult = decodeSlugs(protectedResult.xml);
-	const shortcodeResult = extractShortcodes(slugResult.xml);
+	const forms = readForms(source);
+	const shortcodeResult = extractShortcodes(slugResult.xml, forms);
 	return {
-		xml: shortcodeResult.xml,
+		// Form posts become plugin forms, not content
+		xml: removeFormItems(shortcodeResult.xml),
 		preflight: {
 			source: name,
 			generatedAt: new Date().toISOString(),
@@ -70,6 +75,7 @@ export function prepareExport(original: string, name: string, options: PrepareOp
 		shortcodes: shortcodeResult.entries,
 		permalinks: readPermalinks(source),
 		menus: readMenus(source),
+		forms: forms.forms,
 		mediaMetadata: readAttachmentMetadata(source),
 		attachments: readAttachments(source),
 	};
@@ -90,6 +96,8 @@ export function describePrepared(prepared: PreparedExport): string[] {
 		`  legacy hosts: ${preflight.legacyHosts.join(", ") || "none found"}`,
 		...(preflight.rehosted ? [`  rewrote ${preflight.rehosted.replacements} URL(s) from ${preflight.rehosted.from} to ${preflight.rehosted.to}`] : []),
 		...privateHostWarning(preflight),
+		`  ${prepared.forms.length} form(s) will be created: ${prepared.forms.map((f) => `${f.slug} (${f.source}, ${f.pages[0].fields.length} fields)`).join(", ") || "none"}`,
+		...prepared.forms.flatMap((f) => f.notes.map((n) => `    ! ${f.slug}: ${n}`)),
 		...shortcodes.filter((e) => e.problem).map((p) => `    ! left as text in /${p.slug}: ${p.problem} — ${p.raw.slice(0, 80)}`),
 	];
 }
@@ -116,6 +124,7 @@ export async function writePrepared(outDir: string, stem: string, prepared: Prep
 	await write("shortcodes.json", prepared.shortcodes);
 	await write("permalinks.json", prepared.permalinks);
 	await write("menus.json", prepared.menus);
+	await write("forms.json", prepared.forms);
 	await write("media-metadata.json", prepared.mediaMetadata);
 	await write("attachments.json", prepared.attachments);
 	return preparedPath;

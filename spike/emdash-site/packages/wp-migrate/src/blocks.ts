@@ -13,6 +13,8 @@ export function buildBlocks(
 	resolve: (ref: MediaRef) => ResolvedMedia,
 	newKey: () => string,
 	onExternal: (url: string) => void,
+	/** Form slug → the plugin's form ID (the editor's form picker selects by ID; the renderer takes either) */
+	formIds: Record<string, string> = {},
 ): PtBlock[] {
 	const asset = (ref: MediaRef) => {
 		const media = resolve(ref);
@@ -46,6 +48,8 @@ export function buildBlocks(
 			return [{ _type: "embed", _key: newKey(), url: asset(data.media).url, provider: data.kind }];
 		case "embed":
 			return [{ _type: "embed", _key: newKey(), url: data.url, provider: detectProvider(data.url) }];
+		case "form":
+			return [{ _type: "emdash-form", _key: newKey(), formId: formIds[data.slug] ?? data.slug }];
 	}
 }
 

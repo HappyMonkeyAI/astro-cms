@@ -316,5 +316,16 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
   - `--assign` now matches a WordPress menu by slug, EmDash name (`main_menu`) or label, ignoring case. The pilot tripped over hyphens vs underscores. An unknown menu lists the export's menus.
   - Unit tests: 6 new (51/51). Not yet re-run on the client export.
 - **F28 🟢 Pilot: the deployment recipe works on a real export.** On a fresh Linux host with Node 24 and Docker: patched image build, `astro-cms new`, the setup lock (403 until the setup link), claim, migrate, and backup/restore all worked. Go-live was **NOT READY**, for reasons in the content, not the platform: F27; contact-form shortcodes in page-builder library templates (F23, needs a forms plugin or a rebuild); and a few attachment files missing from the client's uploads copy. Not exercised in the automated pass: search, the cookie banner, and a side-by-side check against the live site. Handoff: [`results/pilot-dev-handoff.md`](results/pilot-dev-handoff.md).
+- **F29 🟢 Forms: EmDash's own forms plugin, plus a `wp-migrate` forms pass.** EmDash already ships `@emdash-cms/plugin-forms` (0.2.11, trusted): a form builder, a submissions inbox with CSV export, notifications, a honeypot or Turnstile, webhooks and an `emdash-form` block. So we adopted it rather than building `forms` (SPEC §5.6). It works unchanged on Node and Postgres, with notifications going through `email-smtp`.
+  - **`wp-migrate` forms pass:** Contact Form 7 (`wpcf7_contact_form`), WPForms (`wpforms`) and Jetpack (inline `[contact-form]`) forms become plugin forms. Their shortcodes become `emdash-form` blocks holding the form ID. A shortcode whose form isn't in the export gets a standard contact form (name, email, message). Anything not carried over, and every form without a recipient, is listed in `forms-report.json`. A form that fails to create leaves its marker in place, so the go-live check still blocks.
+  - **Live test on the OceanWP lawyer demo** (whose export has the shortcodes but not the forms): `migrate` went from NOT READY to **READY TO GO LIVE** with no manual steps. Results, 12/12:
+    - 2 forms created, and both shortcodes became form blocks;
+    - Home renders the form with its honeypot;
+    - `forms/list` accepts an admin API token and refuses anonymous callers (401);
+    - an invalid submission returns errors for each field;
+    - a valid one lands in the inbox, and a honeypot hit returns success without being stored;
+    - with a recipient set, the notification arrived in Mailpit;
+    - a re-run created no duplicate forms and stayed READY.
+  - The site needs `import "@emdash-cms/plugin-forms/styles"` in its layout for basic form styling. Unit tests 6/6 (`wp-migrate` 57/57). The admin form builder wasn't checked in a browser.
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

@@ -10,10 +10,11 @@
  * once media has its new IDs.
  */
 
+import { FORM_SHORTCODES, readForms, type FormCatalog } from "./forms.ts";
 import { findShortcodes, type ShortcodeMatch } from "./shortcode-parse.ts";
 import { getField, isContentItem, readItems, replaceItems, setField } from "./wxr.ts";
 
-export const SUPPORTED_SHORTCODES = ["caption", "wp_caption", "gallery", "audio", "video", "embed"];
+export const SUPPORTED_SHORTCODES = ["caption", "wp_caption", "gallery", "audio", "video", "embed", ...FORM_SHORTCODES];
 export const MARKER_PATTERN = /\{\{wpm:\d+:\d+\}\}/g;
 
 export interface MediaRef {
@@ -26,7 +27,9 @@ export type ShortcodeData =
 	| { kind: "gallery"; images: (MediaRef & { alt?: string })[]; columns: number }
 	| { kind: "audio"; media: MediaRef }
 	| { kind: "video"; media: MediaRef; poster?: string }
-	| { kind: "embed"; url: string };
+	| { kind: "embed"; url: string }
+	/** An `emdash-form` block; `slug` names the form in `forms.json` */
+	| { kind: "form"; slug: string };
 
 export interface ShortcodeEntry {
 	marker: string;
@@ -50,7 +53,8 @@ interface Attachment {
 
 const IMAGE_EXTENSION = /\.(jpe?g|png|gif|webp|avif|svg|bmp|tiff?)$/i;
 
-export function extractShortcodes(xml: string): { xml: string; entries: ShortcodeEntry[] } {
+/** `forms` resolves form shortcodes; pass the catalog whose `forms` you will create (it gains stand-ins). */
+export function extractShortcodes(xml: string, forms: FormCatalog = readForms(xml)): { xml: string; entries: ShortcodeEntry[] } {
 	const items = readItems(xml);
 	const attachments = new Map<number, Attachment>();
 	for (const { raw } of items) {
@@ -81,7 +85,7 @@ export function extractShortcodes(xml: string): { xml: string; entries: Shortcod
 		let cursor = 0;
 		matches.forEach((match, n) => {
 			const marker = `{{wpm:${post.wpPostId}:${n}}}`;
-			const result = describe(match, post.wpPostId, attachments);
+			const result = describe(match, post.wpPostId, attachments, forms);
 			entries.push({ marker, ...post, raw: match.raw, ...result });
 			rewritten += content.slice(cursor, match.start) + (result.data ? marker : match.raw);
 			cursor = match.end;
@@ -96,8 +100,10 @@ function describe(
 	match: ShortcodeMatch,
 	postId: number,
 	attachments: Map<number, Attachment>,
+	forms: FormCatalog,
 ): { data?: ShortcodeData; problem?: string } {
 	const { attrs } = match;
+	if (FORM_SHORTCODES.includes(match.name)) return { data: { kind: "form", slug: forms.resolve(match).slug } };
 	switch (match.name) {
 		case "caption":
 		case "wp_caption": {

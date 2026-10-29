@@ -181,7 +181,7 @@ EmDash's MCP server is the interface. We don't build our own (F14).
 |---|---|
 | `cookie-consent` | **Built** (trusted, `packages/cookie-consent`). Equal-weight accept and reject, analytics and marketing categories, gating of `<script type="text/plain" data-consent="…">`, optional Google Consent Mode v2, a revision number to ask everyone again, and admin-editable text. Live test 13/13, browser check passed. A consent log is still to do |
 | `slider` | **Built** (trusted, `packages/slider`). A carousel Portable Text block in the editor's slash menu, with a site renderer (`componentsEntry`) merged into `<PortableText>`. Scroll-snap without JavaScript; buttons, dots, arrow keys, and autoplay that respects reduced motion. Image and link URLs are restricted to safe ones. Live test 13/13, browser check and the admin insert, save and publish flow passed. Slides take image URLs (F26) |
-| `forms` | Contact form and submissions inbox, with email through `email-smtp`. Possibly v0.2 |
+| `forms` | **Adopted, not built:** EmDash's own `@emdash-cms/plugin-forms` (0.2.11, trusted) already has a form builder, a submissions inbox with CSV export, notifications (sent through `email-smtp`), a honeypot or Turnstile, webhooks and an `emdash-form` block. `wp-migrate` converts Contact Form 7, WPForms and Jetpack forms into it and their shortcodes into form blocks (spike F29) |
 | ~~`sitemap`~~ | Dropped: EmDash core serves `sitemap.xml` and `robots.txt` |
 | ~~`seo`~~ | Dropped: core has per-entry SEO fields and Open Graph |
 | ~~`redirects`~~ | Dropped: core redirects (F22) |

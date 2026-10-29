@@ -59,8 +59,20 @@ function escapeXml(value: string): string {
 	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** WordPress post types that hold site content (not attachments, menu items or internals). */
+/** WordPress post types that are site configuration, not content: media, menus, and forms (`forms.ts`) */
+const NON_CONTENT_TYPES = new Set(["attachment", "nav_menu_item", "wpcf7_contact_form", "wpforms"]);
+
+/** WordPress post types that hold site content (not attachments, menu items, forms or internals). */
 export function isContentItem(raw: string): boolean {
 	const type = getField(raw, "wp:post_type");
-	return type !== "" && type !== "attachment" && type !== "nav_menu_item" && !type.startsWith("wp_");
+	return type !== "" && !NON_CONTENT_TYPES.has(type) && !type.startsWith("wp_");
+}
+
+/** An item's `<wp:postmeta>` values by key */
+export function readMeta(raw: string): Map<string, string> {
+	const meta = new Map<string, string>();
+	for (const m of raw.matchAll(/<wp:postmeta>\s*<wp:meta_key>(?:<!\[CDATA\[)?([^<\]]*)(?:\]\]>)?<\/wp:meta_key>\s*<wp:meta_value>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/wp:meta_value>/g)) {
+		meta.set(m[1], m[2]);
+	}
+	return meta;
 }

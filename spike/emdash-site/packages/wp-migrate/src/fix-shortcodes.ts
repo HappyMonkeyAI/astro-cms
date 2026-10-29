@@ -19,6 +19,8 @@ export interface FixShortcodesOptions {
 	mcp: McpClient;
 	/** WordPress post type → EmDash collection. @default post→posts, page→pages */
 	collections?: Record<string, string>;
+	/** Form slug → form ID, from the forms pass */
+	formIds?: Record<string, string>;
 	dryRun?: boolean;
 	log?: (line: string) => void;
 }
@@ -60,7 +62,9 @@ export async function fixShortcodes(options: FixShortcodesOptions): Promise<Entr
 					value,
 					(marker) => {
 						const entry = byMarker.get(marker);
-						return entry?.data && buildBlocks(entry.data, resolve, newKey, (url) => outcome.externalMedia.push(url));
+						// A form that wasn't created would embed nothing; leave the marker so the go-live check flags it
+						if (entry?.data?.kind === "form" && !options.formIds?.[entry.data.slug]) return undefined;
+						return entry?.data && buildBlocks(entry.data, resolve, newKey, (url) => outcome.externalMedia.push(url), options.formIds);
 					},
 					newKey,
 				);

@@ -316,6 +316,7 @@ Most of these are already in `spike/README.md`:
 - **Server-side media fetches:** these refuse private and LAN addresses (the SSRF guard). Use `--uploads` for a site that isn't publicly reachable.
 - **Setup link:** it's `$BASE/_emdash/admin?setup_token=<token>`, as `astro-cms new` prints it. There is no `/_emdash/setup/<token>` route (404).
 - **Waiting for health:** wait for the **site** service (`docker compose ps site`). Postgres becomes healthy first, so any "(healthy)" line isn't enough.
+- **Forms:** Contact Form 7, WPForms and Jetpack forms become forms in EmDash's forms plugin. Report every form in `forms-report.json` "to review": stand-in forms and forms without a recipient need a human decision before go-live (spike F29).
 - **Staging exports:** an export taken after a search-replace to `localhost` names a host EmDash can't fetch from. Use `--production-url` and `--uploads` (spike F27).
 
 ---
