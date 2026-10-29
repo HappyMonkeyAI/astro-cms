@@ -3,15 +3,18 @@
  * wp-migrate: WordPress → EmDash migration around EmDash's own importer.
  *
  *   wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]...
- *                      [--uploads <copy of wp-content/uploads>] [--fetch-missing]
+ *                      [--uploads <copy of wp-content/uploads>] [--fetch-missing] [--production-url <live site URL>]
  *                                                      everything below in order, then the go-live check; exit 0 = ready.
  *                                                      --uploads supplies media the old host can't serve (offline, LAN, local)
+ *                                                      --production-url replaces the export's site URL (e.g. localhost after a
+ *                                                      staging search-replace) with the live one before anything else
  *   wp-migrate check --prepared <dir> --base <site-url>
  *                                                      go-live check: migration-guard scan + leftover markers = 0
  *
  *   The individual steps:
- *   wp-migrate preflight <export.xml>                  report what needs attention; changes nothing
- *   wp-migrate prepare   <export.xml> --out <dir>      write <dir>/<name>.prepared.xml to import, plus
+ *   wp-migrate preflight <export.xml> [--production-url <url>]   report what needs attention; changes nothing
+ *   wp-migrate prepare   <export.xml> --out <dir> [--production-url <url>]
+ *                                                      write <dir>/<name>.prepared.xml to import, plus
  *                                                      preflight.json and shortcodes.json
  *   (import the prepared file with EmDash, including media)
  *   wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]
@@ -49,6 +52,7 @@ import { fixMediaMetadata } from "./media-metadata.ts";
 import { uploadLocalMedia } from "./local-media.ts";
 import { migrate } from "./pipeline.ts";
 import { describePrepared, prepareExport, writePrepared } from "./prepare.ts";
+import { parseProductionUrl } from "./rehost.ts";
 import { connectRest } from "./rest-client.ts";
 import type { ShortcodeEntry } from "./shortcodes.ts";
 
@@ -74,10 +78,10 @@ function readAssign(): Record<string, string> {
 function usage(): never {
 	console.error(
 		[
-			"Usage: wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--uploads <wp-content/uploads copy>] [--fetch-missing]",
+			"Usage: wp-migrate migrate <export.xml> --out <dir> --base <site-url> [--assign primary=<wp-menu-slug>]... [--uploads <wp-content/uploads copy>] [--fetch-missing] [--production-url <url>]",
 			"       wp-migrate local-media --prepared <dir> --media <media-report.json> --uploads <dir> --base <site-url> [--dry-run]",
-			"       wp-migrate preflight <export.xml>",
-			"       wp-migrate prepare <export.xml> --out <dir>",
+			"       wp-migrate preflight <export.xml> [--production-url <url>]",
+			"       wp-migrate prepare <export.xml> --out <dir> [--production-url <url>]",
 			"       wp-migrate check --prepared <dir> --base <site-url>",
 			"       wp-migrate fix-shortcodes --prepared <dir> --media <media-report.json> --base <site-url> [--dry-run]",
 			"       wp-migrate fix-media --prepared <dir> --media <media-report.json> --base <site-url> [--fetch-missing] [--dry-run]",
@@ -90,9 +94,18 @@ function usage(): never {
 	process.exit(2);
 }
 
+if (option("--production-url") !== undefined) {
+	try {
+		parseProductionUrl(option("--production-url") ?? "");
+	} catch (error) {
+		console.error((error as Error).message);
+		process.exit(2);
+	}
+}
+
 if (command === "preflight" || command === "prepare") {
 	if (!positional) usage();
-	const prepared = prepareExport(await readFile(positional, "utf8"), basename(positional));
+	const prepared = prepareExport(await readFile(positional, "utf8"), basename(positional), { productionUrl: option("--production-url") });
 	console.log(describePrepared(prepared).join("\n"));
 	if (command === "prepare") {
 		const outDir = option("--out");
@@ -117,6 +130,7 @@ if (command === "preflight" || command === "prepare") {
 		assign: readAssign(),
 		fetchMissing: args.includes("--fetch-missing"),
 		uploadsDir: option("--uploads"),
+		productionUrl: option("--production-url"),
 		log: (line) => console.log(line),
 	});
 	console.log(report.ready ? "\nREADY TO GO LIVE" : `\nNOT READY: see ${join(outDir, "migrate-report.json")} and go-live.json`);

@@ -11,6 +11,7 @@ import type { AttachmentRef } from "./local-media.ts";
 import { readAttachmentMetadata, type AttachmentMetadata } from "./media-metadata.ts";
 import { readMenus, type MenuSpec } from "./menus.ts";
 import { readPermalinks, type Permalink } from "./permalinks.ts";
+import { isPrivateHost, rehostExport, type Rehosted } from "./rehost.ts";
 import { protectContent, type ProtectedItem } from "./protect.ts";
 import { extractShortcodes, type ShortcodeEntry } from "./shortcodes.ts";
 import { decodeSlugs, type DecodedSlug } from "./slugs.ts";
@@ -20,6 +21,8 @@ export interface Preflight {
 	source: string;
 	generatedAt: string;
 	legacyHosts: string[];
+	/** Set when `--production-url` put the live site's URL back into the export */
+	rehosted?: Rehosted;
 	protected: ProtectedItem[];
 	decodedSlugs: DecodedSlug[];
 }
@@ -43,7 +46,13 @@ export function readAttachments(xml: string): AttachmentRef[] {
 		.filter((a) => a.wpId && a.url);
 }
 
-export function prepareExport(source: string, name: string): PreparedExport {
+export interface PrepareOptions {
+	/** The live site's URL, replacing the export's own (e.g. localhost after a staging search-replace) */
+	productionUrl?: string;
+}
+
+export function prepareExport(original: string, name: string, options: PrepareOptions = {}): PreparedExport {
+	const { xml: source, rehosted } = options.productionUrl ? rehostExport(original, options.productionUrl) : { xml: original, rehosted: undefined };
 	const protectedResult = protectContent(source);
 	const slugResult = decodeSlugs(protectedResult.xml);
 	const shortcodeResult = extractShortcodes(slugResult.xml);
@@ -52,7 +61,9 @@ export function prepareExport(source: string, name: string): PreparedExport {
 		preflight: {
 			source: name,
 			generatedAt: new Date().toISOString(),
-			legacyHosts: findLegacyHosts(source),
+			// The original's hosts too: anything the rehost missed is still a leftover
+			legacyHosts: [...new Set([...findLegacyHosts(source), ...findLegacyHosts(original)])].sort(),
+			...(rehosted && { rehosted }),
 			protected: protectedResult.protected,
 			decodedSlugs: slugResult.decoded,
 		},
@@ -75,9 +86,23 @@ export function describePrepared(prepared: PreparedExport): string[] {
 		...preflight.protected.map((i) => `    - [${i.reason}] ${i.type} "${i.title}" (/${i.slug}, was ${i.originalStatus})`),
 		`  ${converted.length} shortcode(s) will be converted: ${byKind.map(([k, n]) => `${n} ${k}`).join(", ") || "none"}`,
 		`  ${preflight.decodedSlugs.length} percent-encoded slug(s) will be decoded (EmDash can't serve them encoded)`,
-		`  ${menus.length} menu(s): ${menus.map((m) => `${m.slug} (${m.items.length})`).join(", ") || "none"}`,
+		`  ${menus.length} menu(s): ${menus.map((m) => `${m.slug} (${m.items.length})`).join(", ") || "none"}${menus.length ? ` (site menu: --assign primary=${menus[0].slug})` : ""}`,
 		`  legacy hosts: ${preflight.legacyHosts.join(", ") || "none found"}`,
+		...(preflight.rehosted ? [`  rewrote ${preflight.rehosted.replacements} URL(s) from ${preflight.rehosted.from} to ${preflight.rehosted.to}`] : []),
+		...privateHostWarning(preflight),
 		...shortcodes.filter((e) => e.problem).map((p) => `    ! left as text in /${p.slug}: ${p.problem} — ${p.raw.slice(0, 80)}`),
+	];
+}
+
+/** F27: an export taken after a search-replace to a local URL can't go live as it stands. */
+function privateHostWarning(preflight: Preflight): string[] {
+	const fromHost = preflight.rehosted && new URL(preflight.rehosted.from).hostname;
+	const hosts = preflight.legacyHosts.filter((h) => isPrivateHost(h) && h !== fromHost);
+	if (!hosts.length) return [];
+	return [
+		`  ! local or private legacy host: ${hosts.join(", ")}. The export was probably taken after a search-replace to a local URL.`,
+		"    Media can't be downloaded from it (use --uploads with a copy of wp-content/uploads), and links to it will fail the go-live check.",
+		"    Export before the search-replace, or pass --production-url https://<live site> to put the live URL back.",
 	];
 }
 

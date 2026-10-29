@@ -67,12 +67,13 @@ export async function fixMenus(options: FixMenusOptions): Promise<MenuOutcome[]>
 	const existing = new Set(asItems(await mcp.call("menu_list", {})).map((m: any) => m.name));
 	const jobs = [
 		...options.menus.map((menu) => ({ name: toMenuName(menu.slug), menu })),
-		...Object.entries(options.assign ?? {}).map(([name, from]) => ({ name, menu: options.menus.find((m) => m.slug === from) })),
+		...Object.entries(options.assign ?? {}).map(([name, from]) => ({ name, menu: findMenu(options.menus, from) })),
 	];
 	const outcomes: MenuOutcome[] = [];
 	for (const { name, menu } of jobs) {
 		if (!menu) {
-			outcomes.push({ menu: name, from: "", items: 0, dropped: [], unresolvedUrls: [], created: false, error: "no such WordPress menu in the export" });
+			const available = options.menus.map((m) => m.slug).join(", ") || "none";
+			outcomes.push({ menu: name, from: "", items: 0, dropped: [], unresolvedUrls: [], created: false, error: `no such WordPress menu in the export (menus: ${available})` });
 			continue;
 		}
 		const unresolvedUrls: string[] = [];
@@ -116,6 +117,19 @@ export async function fixMenus(options: FixMenusOptions): Promise<MenuOutcome[]>
 }
 
 /** EmDash menu names must match /^[a-z][a-z0-9_]*$/; WordPress menu slugs use hyphens and may be non-ASCII. */
+/**
+ * The WordPress menu `--assign` names: its slug, its EmDash name (`main_menu` for `main-menu`)
+ * or its label, ignoring case. The pilot tripped over hyphens vs underscores.
+ */
+export function findMenu(menus: MenuSpec[], ref: string): MenuSpec | undefined {
+	const wanted = ref.trim().toLowerCase();
+	return (
+		menus.find((m) => m.slug === ref) ??
+		menus.find((m) => m.slug.toLowerCase() === wanted || m.label.trim().toLowerCase() === wanted) ??
+		menus.find((m) => toMenuName(m.slug) === toMenuName(ref))
+	);
+}
+
 export function toMenuName(slug: string): string {
 	const name = slug
 		.normalize("NFKD")

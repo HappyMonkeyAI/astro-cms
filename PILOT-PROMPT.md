@@ -125,7 +125,7 @@ Use the default `--port` (loopback only). Don't use `--domain` or Caddy unless t
 
 ```sh
 cd ~/sites/pilot && docker compose up -d
-docker compose ps                  # wait until site shows "healthy" (up to about 1 minute)
+docker compose ps site             # wait until the site service shows "healthy" (up to about 1 minute); the db is healthy first
 curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "X-EmDash-Request: 1" -H "Content-Type: application/json" \
   -d '{"email":"x@example.com","password":"long-enough-password-123"}' $BASE/_emdash/api/setup/password-admin
 ```
@@ -186,7 +186,9 @@ This reports what needs attention: shortcodes, page builders, private and passwo
 
 Save the output to `client-data/pilot-out/preflight.txt`.
 
-**Note the site's menu slugs:** you need one for `--assign` in the next step.
+**Note the site's menu slugs:** you need one for `--assign` in the next step. Preflight suggests one.
+
+**If preflight warns about a local or private legacy host** (for example `localhost`), the export was taken after a search-replace. Ask the user for the live site's URL and add `--production-url https://<live site>` to preflight and migrate. Keep `--uploads` as well.
 
 ### 8. Migrate
 
@@ -312,6 +314,9 @@ Most of these are already in `spike/README.md`:
 - **Search speed:** about 0.5 ms per published entry. Note it if the client site is large (over 1,000 entries).
 - **Plugin routes:** these are at `/_emdash/api/plugins/<slug>/<route>` and need the `X-EmDash-Request: 1` header.
 - **Server-side media fetches:** these refuse private and LAN addresses (the SSRF guard). Use `--uploads` for a site that isn't publicly reachable.
+- **Setup link:** it's `$BASE/_emdash/admin?setup_token=<token>`, as `astro-cms new` prints it. There is no `/_emdash/setup/<token>` route (404).
+- **Waiting for health:** wait for the **site** service (`docker compose ps site`). Postgres becomes healthy first, so any "(healthy)" line isn't enough.
+- **Staging exports:** an export taken after a search-replace to `localhost` names a host EmDash can't fetch from. Use `--production-url` and `--uploads` (spike F27).
 
 ---
 

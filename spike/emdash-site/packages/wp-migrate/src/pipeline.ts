@@ -36,6 +36,8 @@ export interface MigrateOptions {
 	fetchMissing?: boolean;
 	/** Local copy of wp-content/uploads, for media the importer couldn't download */
 	uploadsDir?: string;
+	/** The live site's URL, replacing the export's own (spike F27) */
+	productionUrl?: string;
 	log?: (line: string) => void;
 }
 
@@ -72,7 +74,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 
 	try {
 		const source = await readFile(options.exportFile, "utf8");
-		const prepared = prepareExport(source, basename(options.exportFile));
+		const prepared = prepareExport(source, basename(options.exportFile), { productionUrl: options.productionUrl });
 		let preparedPath = "";
 		await step(
 			"prepare",
