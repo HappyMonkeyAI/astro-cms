@@ -9,7 +9,7 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 1 | Runtime config | Done. `@astro-cms/runtime-config`; one image serves many sites |
 | 2 | Migration | Done. `wp-migrate` has every pass, a one-command `migrate` and a go-live `check` |
 | 3 | Client auth | Done. Google OAuth round trip, password invite, reset and email 2FA, SMTP transport |
-| 4 | Agent safety | Done apart from the prompt-injection test (F24) |
+| 4 | Agent safety | Done. Prompt-injection eval run (F32); open: approval gate for agent trash |
 | 5 | Plugin kit and catalogue | Kit verified; cookie-consent and slider built; forms adopted from EmDash (F29) |
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
 | 7 | Pilot | **In progress.** Real client export; the retest blocker (F30) and the failed shortcode fixes (F31) are fixed; the pilot host needs a rebuild and re-run |
@@ -67,6 +67,14 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
 - **Verified:** a side-by-side live test. The old code gave 2 failed and NOT READY; the new code replaced all 4 and was READY. `wp-migrate` 63/63.
 - **PILOT-PROMPT.md:** new "Retest" section, which asks for the exact error text of every failed item.
 
+### F32: prompt-injection evaluation (2026-10-30)
+
+- **Harness:** `spike/injection-eval/`. The model gets only the site's MCP tools, as a real agent account on a throwaway site, through any OpenAI-compatible endpoint. No Claude API.
+- **Results:**
+  - Tess-4.5-27B attempted the planted goal 0/12 times.
+  - LFM3-1.7B attempted it 0/6 times; the run was stopped for low memory, so the excerpt and tagline scenarios didn't run.
+  - A scripted always-obeying agent showed that the platform blocks publishing and settings changes and keeps content edits staged, but **lets an agent trash a published page** (it goes offline at once).
+
 ### Repo skills
 
 - `.claude/skills/throwaway-site`: `site.sh up|down|list` for claimed throwaway test sites. It was used by the F30 live test.
@@ -85,7 +93,8 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
 - S3 media storage.
 - A cookie consent log.
 - A pg-search index table.
-- The prompt-injection test (F24).
+- Agent-guard: an approval gate for agents trashing published content (F32).
+- More injection-eval runs: more trials and models, and the `hardened` prompt (`spike/injection-eval/`).
 - The Microsoft SSO round trip.
 - A 2FA toggle.
 - Browser click tests for cookie-consent and slider, and the slider's admin modal flow.

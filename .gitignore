@@ -22,3 +22,6 @@ client-data/
 
 # Throwaway test sites (credentials)
 .throwaway/
+
+# Injection eval raw runs (transcripts); summaries go to spike/results
+spike/injection-eval/runs/
