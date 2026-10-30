@@ -7,6 +7,7 @@
  * still point at old pages, so visitors don't take a redirect hop.
  */
 
+import { toCollection } from "./collections.ts";
 import type { Permalink } from "./permalinks.ts";
 import { decodeSlug } from "./slugs.ts";
 
@@ -45,7 +46,7 @@ export function planRedirects(input: PlanInput): { create: PlannedRedirect[]; sk
 
 	for (const p of input.permalinks) {
 		const skip = (reason: string) => skipped.push({ path: p.path, wpId: p.wpId, reason });
-		const collection = input.collections[p.postType] ?? `${p.postType}s`;
+		const collection = toCollection(p.postType, input.collections);
 		const pattern = input.urlPatterns[collection];
 		if (!p.path) {
 			skip("plain permalink (?p=) can't be redirected by path");

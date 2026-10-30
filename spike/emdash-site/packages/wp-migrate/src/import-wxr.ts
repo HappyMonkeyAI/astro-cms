@@ -7,6 +7,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
+import { collectionsFromAnalysis } from "./collections.ts";
+
 export interface ImportOptions {
 	base: string;
 	token: string;
@@ -25,6 +27,8 @@ export interface ImportSummary {
 	media?: { imported: number; failed: number };
 	/** Path of the media report the post-import passes read */
 	mediaReport?: string;
+	/** WordPress post type → the collection EmDash imported it into */
+	collections: Record<string, string>;
 }
 
 export async function importWxr(options: ImportOptions): Promise<ImportSummary> {
@@ -72,7 +76,7 @@ export async function importWxr(options: ImportOptions): Promise<ImportSummary> 
 		importLogo: false,
 		importSeo: true,
 	};
-	const summary: ImportSummary = { imported: 0, skipped: 0, errors: [], byCollection: {} };
+	const summary: ImportSummary = { imported: 0, skipped: 0, errors: [], byCollection: {}, collections: collectionsFromAnalysis(analysis) };
 	const merge = (result: any) => {
 		summary.imported += result?.imported ?? 0;
 		summary.skipped += result?.skipped ?? 0;

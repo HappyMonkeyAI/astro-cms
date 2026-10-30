@@ -341,5 +341,12 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - The standalone `check` works.
   - **Timing:** EmDash syncs plugin storage indexes on the first scheduler tick after the process starts, about a minute after boot, not at boot itself.
   - **Also:** migration-guard now stores `entrySlug` rather than a top-level `slug`, so it never depends on another plugin's index. The go-live check now reports a scan error as a scan failure; only a 404 means the plugin is missing. The `--assign` hint in `prepare` no longer reads as if a menu had already been assigned.
+- **F31 🔴→🟢 `wp-migrate` guessed collection names for custom post types.** The retest reported 2 of 17 shortcode fixes failed.
+  - **Cause:** EmDash's importer puts a custom post type in a collection with the post type's own name; only a few known types (`faq`, `event`, `product`, …) get a plural. `wp-migrate`'s shortcodes, menus and redirects passes fell back to `<type>s`. A shortcode in a page-builder library template (`elementor_library`) or a `portfolio` item was therefore looked up in `elementor_librarys` or `portfolios`, failed with `content_get: [NOT_FOUND]`, and stayed in the content, so go-live was blocked.
+  - **Fix:** the import step records the collection EmDash used for each post type (from its analysis), and every pass uses that. Standalone commands read it from `import/1-analysis.json`. Without a record, the passes mirror EmDash's own table.
+  - **Test:** a fixture made of the lawyer demo, a library template and a `portfolio` item, each with a form shortcode, migrated side by side on two throwaway sites.
+    - The old code reproduced the pilot's pattern: 2 failed, and NOT READY.
+    - The new code replaced all 4 shortcodes and reported READY TO GO LIVE.
+    - Unit tests 4 new, `wp-migrate` 63/63.
 
 - **F8 🟢 Small doc drift.** The docs give `/health`, but it returns 404. The real endpoint is `/_emdash/api/health`, which returns the version.

@@ -20,7 +20,7 @@ You have the repository and a real client's WordPress data. Do this:
 
 **Before you start**, read these, in this order:
 1. `SPEC.md`: what the distribution is, its decisions, and its milestones.
-2. `spike/README.md`: findings F1–F26, the known problems and their fixes. **Check here before reporting a "new" problem.**
+2. `spike/README.md`: findings F1–F31, the known problems and their fixes. **Check here before reporting a "new" problem.**
 3. `spike/emdash-site/packages/wp-migrate/README.md`: the migration tool.
 4. `spike/emdash-site/packages/cli/templates/site/README.md.tmpl`: the deployment recipe you'll generate.
 
@@ -302,6 +302,25 @@ cd ~/sites/pilot && docker compose down        # keeps the data volumes
 
 ---
 
+## Retest (after fixes on `main`)
+
+Use this instead of the full run when the developer has pushed fixes for an earlier pilot. Read `spike/results/` first, so you know what the last run found.
+
+1. **Update:** run `git pull`, note the new HEAD, then check which fixes it contains in `PROGRESS.md` and `spike/README.md`.
+2. **Rebuild the image** if anything under `spike/emdash-site/` changed apart from `packages/wp-migrate/`, e.g. `scripts/patch-emdash.mjs` or `plugins/`. A change to `wp-migrate` alone needs no rebuild, because it runs from the repo. Check the build log for every `patched [...]` line. F30 must be there.
+3. **Choose one:**
+   - **Quick, on the site left from the last run:** recreate the site container from the new image (`docker compose up -d`). Wait at least a minute: EmDash builds plugin storage indexes on its first scheduler tick, not at boot. Then run only the go-live check: `EMDASH_TOKEN=$ADMIN_TOKEN node spike/emdash-site/packages/wp-migrate/src/cli.ts check --prepared <out-dir> --base $BASE`. This doesn't re-run any `wp-migrate` pass. So when a `wp-migrate` fix is involved, as with F31, use the fresh run instead.
+   - **Fresh (preferred):** run `docker compose down -v`, then generate and claim the site again as in steps 3–6. Then `migrate` with `--production-url <live URL>` and `--uploads <folder>` into a **new** output folder, so the earlier results stay comparable.
+4. **Report** as a new `spike/results/pilot-retest-<n>-handoff.md` (generic, with no client names or domains), covering:
+   - the verdict, the peer HEAD and which run you chose;
+   - what improved since the last run, with numbers;
+   - every remaining failure with its **exact error text**. The developer can't see the client data, so for a failed shortcode, media or menu item, quote the `error` field from `fix-shortcodes.json`, `fix-media.json` or `menus-report.json`, and give the collection and post type, not the slug, when the slug would identify the client;
+   - the leftovers, classified as platform, content or process.
+
+   Then commit and push only that handoff file, as with the earlier handoffs.
+
+---
+
 ## Known gotchas
 
 Most of these are already in `spike/README.md`:
@@ -317,6 +336,7 @@ Most of these are already in `spike/README.md`:
 - **Setup link:** it's `$BASE/_emdash/admin?setup_token=<token>`, as `astro-cms new` prints it. There is no `/_emdash/setup/<token>` route (404).
 - **Waiting for health:** wait for the **site** service (`docker compose ps site`). Postgres becomes healthy first, so any "(healthy)" line isn't enough.
 - **Forms:** Contact Form 7, WPForms and Jetpack forms become forms in EmDash's forms plugin. Report every form in `forms-report.json` "to review": stand-in forms and forms without a recipient need a human decision before go-live (spike F29).
+- **Custom post types:** a page-builder library template (e.g. `elementor_library`) or another custom post type is imported into a collection that has its post type's own name. Before F31, `wp-migrate` looked for `<type>s` and failed with `content_get: [NOT_FOUND]`.
 - **Staging exports:** an export taken after a search-replace to `localhost` names a host EmDash can't fetch from. Use `--production-url` and `--uploads` (spike F27).
 
 ---

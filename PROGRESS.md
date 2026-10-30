@@ -12,7 +12,7 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 4 | Agent safety | Done apart from the prompt-injection test (F24) |
 | 5 | Plugin kit and catalogue | Kit verified; cookie-consent and slider built; forms adopted from EmDash (F29) |
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
-| 7 | Pilot | **In progress.** Real client export; the retest blocker (F30) is fixed, and the pilot host needs a rebuild and re-run |
+| 7 | Pilot | **In progress.** Real client export; the retest blocker (F30) and the failed shortcode fixes (F31) are fixed; the pilot host needs a rebuild and re-run |
 
 ## 2026-10-29
 
@@ -60,6 +60,13 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
 - **Live test in the rebuilt image: 12/12.** It covered the existing-site path, dropping the old index, a migrate with a page and a post sharing a slug, and that form slugs stay unique.
 - **Timing:** plugin storage indexes are synced on the first scheduler tick, about a minute after boot.
 
+### F31: collection names for custom post types (2026-10-30)
+
+- **The retest's 2 failed shortcode fixes:** `wp-migrate` looked for `<type>s` (`elementor_librarys`), but EmDash names a custom post type's collection after the post type itself.
+- **Fix:** the import step records the collections EmDash used, and the shortcodes, menus and redirects passes all use them.
+- **Verified:** a side-by-side live test. The old code gave 2 failed and NOT READY; the new code replaced all 4 and was READY. `wp-migrate` 63/63.
+- **PILOT-PROMPT.md:** new "Retest" section, which asks for the exact error text of every failed item.
+
 ### Repo skills
 
 - `.claude/skills/throwaway-site`: `site.sh up|down|list` for claimed throwaway test sites. It was used by the F30 live test.
@@ -68,8 +75,8 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
 
 ## Next
 
-1. Pilot host: `git pull`, rebuild the image, and run the go-live check again on the site left on `:4500`. A fresh re-run also works.
-2. Look into the retest's 2 failed shortcode fixes (probably the missing-form case) and the 2 missing media files.
+1. Pilot host: follow the "Retest" section of PILOT-PROMPT.md. Run `git pull`, then rebuild the image for F30, then do a fresh `migrate` with `--production-url` (a fresh run is needed to pick up F31). Expect only content leftovers.
+2. Check the next handoff for the 2 missing media files. If they're missing from the client's uploads copy too, the client has to supply them.
 3. Pilot content review needs a human: compare the 2 stand-in forms with the live site, set notification recipients, and get a complete uploads copy from the client.
 
 ## Open, not scheduled

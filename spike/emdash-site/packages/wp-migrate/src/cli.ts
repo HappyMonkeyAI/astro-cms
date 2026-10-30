@@ -47,6 +47,7 @@ import { basename, join } from "node:path";
 
 import { createBaselineRevisions } from "./baseline.ts";
 import { goLiveCheck } from "./check.ts";
+import { readImportCollections } from "./collections.ts";
 import { fixForms } from "./fix-forms.ts";
 import { fixMedia } from "./fix-media.ts";
 import { fixMenus } from "./fix-menus.ts";
@@ -208,6 +209,7 @@ if (command === "preflight" || command === "prepare") {
 		legacyHosts: (await read("preflight.json")).legacyHosts,
 		mcp: await connectMcp(base, token),
 		assign,
+		collections: await readImportCollections(prepared),
 		dryRun: args.includes("--dry-run"),
 		log: (line) => console.log(`  ${line}`),
 	});
@@ -251,6 +253,7 @@ if (command === "preflight" || command === "prepare") {
 		legacyHosts,
 		mcp: await connectMcp(base, token),
 		rest: connectRest(base, token),
+		collections: await readImportCollections(prepared),
 		dryRun: args.includes("--dry-run"),
 		log: (line) => console.log(`  ${line}`),
 	});
@@ -310,7 +313,7 @@ if (command === "preflight" || command === "prepare") {
 	} else {
 		const entries: ShortcodeEntry[] = JSON.parse(await readFile(join(prepared, "shortcodes.json"), "utf8"));
 		const formIds = await readFile(join(prepared, "forms-report.json"), "utf8").then((t) => JSON.parse(t).ids, () => ({}));
-		const outcomes = await fixShortcodes({ entries, media, mcp, dryRun, log, formIds });
+		const outcomes = await fixShortcodes({ entries, media, mcp, dryRun, log, formIds, collections: await readImportCollections(prepared) });
 		await writeFile(join(prepared, "fix-shortcodes.json"), `${JSON.stringify(outcomes, null, 2)}\n`);
 		const replaced = outcomes.reduce((n, o) => n + o.replaced, 0);
 		const stuck = outcomes.flatMap((o) => o.stuck);

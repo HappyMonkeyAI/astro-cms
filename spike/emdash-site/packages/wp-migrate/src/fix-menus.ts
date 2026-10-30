@@ -4,6 +4,7 @@
  * existing site menu such as the template's `primary` (theme locations aren't in WXR).
  */
 
+import { toCollection } from "./collections.ts";
 import { asItems, listCollections, listEntries } from "./entries.ts";
 import { legacyUrlPattern } from "./legacy-hosts.ts";
 import type { McpClient } from "./mcp-client.ts";
@@ -37,7 +38,7 @@ export interface MenuOutcome {
 
 export async function fixMenus(options: FixMenusOptions): Promise<MenuOutcome[]> {
 	const { mcp, dryRun, log = () => {} } = options;
-	const collections = { post: "posts", page: "pages", ...options.collections };
+	const collections = options.collections ?? {};
 	const taxonomies = { category: "category", post_tag: "tag", ...options.taxonomies };
 
 	const infos = await listCollections(mcp);
@@ -79,7 +80,7 @@ export async function fixMenus(options: FixMenusOptions): Promise<MenuOutcome[]>
 		const unresolvedUrls: string[] = [];
 		const plan = planMenuItems(menu, {
 			entry: (postType, slug) => {
-				const collection = collections[postType] ?? `${postType}s`;
+				const collection = toCollection(postType, collections);
 				const id = ids.get(`${collection}:${slug}`);
 				return id ? { collection, id } : undefined;
 			},

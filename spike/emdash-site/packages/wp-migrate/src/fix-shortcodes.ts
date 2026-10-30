@@ -7,6 +7,7 @@
  */
 
 import { buildBlocks } from "./blocks.ts";
+import { toCollection } from "./collections.ts";
 import { updateEntry } from "./entries.ts";
 import type { McpClient } from "./mcp-client.ts";
 import { createMediaResolver, type ImportedMedia } from "./media.ts";
@@ -17,7 +18,7 @@ export interface FixShortcodesOptions {
 	entries: ShortcodeEntry[];
 	media: ImportedMedia[];
 	mcp: McpClient;
-	/** WordPress post type → EmDash collection. @default post→posts, page→pages */
+	/** WordPress post type → EmDash collection, as recorded by the import step. @default EmDash's own mapping */
 	collections?: Record<string, string>;
 	/** Form slug → form ID, from the forms pass */
 	formIds?: Record<string, string>;
@@ -37,7 +38,7 @@ export interface EntryOutcome {
 
 export async function fixShortcodes(options: FixShortcodesOptions): Promise<EntryOutcome[]> {
 	const { mcp, dryRun, log = () => {} } = options;
-	const collections = { post: "posts", page: "pages", ...options.collections };
+	const collections = options.collections ?? {};
 	const resolve = createMediaResolver(options.media);
 	const byMarker = new Map(options.entries.filter((e) => e.data).map((e) => [e.marker, e]));
 	const posts = new Map<number, ShortcodeEntry[]>();
@@ -49,7 +50,7 @@ export async function fixShortcodes(options: FixShortcodesOptions): Promise<Entr
 
 	for (const [, group] of posts) {
 		const { postType, slug } = group[0];
-		const collection = collections[postType] ?? `${postType}s`;
+		const collection = toCollection(postType, collections);
 		const outcome: EntryOutcome = { collection, slug, replaced: 0, stuck: [], externalMedia: [], republished: false };
 		outcomes.push(outcome);
 		try {

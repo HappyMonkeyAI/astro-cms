@@ -101,6 +101,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			true,
 		);
 		const mediaReport = imported?.mediaReport;
+		const collections = imported?.collections ?? {};
 		if (imported?.media) {
 			const { media: m } = imported;
 			await step("media import", async () => ({
@@ -146,7 +147,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			});
 		}
 		await step("shortcodes", async () => {
-			const r = await fixShortcodes({ entries: prepared.shortcodes, media, mcp, formIds });
+			const r = await fixShortcodes({ entries: prepared.shortcodes, media, mcp, formIds, collections });
 			await save("fix-shortcodes.json", r);
 			const stuck = r.flatMap((o) => o.stuck).length;
 			const failed = r.filter((o) => o.error).length;
@@ -165,7 +166,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			return { ok: !r.errors.length, summary: `${r.updated} updated, ${r.missingAlt} without alt text, ${r.errors.length} failed` };
 		});
 		await step("redirects", async () => {
-			const r = await fixRedirects({ permalinks: prepared.permalinks, legacyHosts: prepared.preflight.legacyHosts, mcp, rest });
+			const r = await fixRedirects({ permalinks: prepared.permalinks, legacyHosts: prepared.preflight.legacyHosts, mcp, rest, collections });
 			await save("redirects.json", r);
 			return {
 				ok: !r.failed.length && !r.links.some((l) => l.error),
@@ -173,7 +174,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			};
 		});
 		await step("menus", async () => {
-			const r = await fixMenus({ menus: prepared.menus, permalinks: prepared.permalinks, legacyHosts: prepared.preflight.legacyHosts, mcp, assign: options.assign });
+			const r = await fixMenus({ menus: prepared.menus, permalinks: prepared.permalinks, legacyHosts: prepared.preflight.legacyHosts, mcp, assign: options.assign, collections });
 			await save("menus-report.json", r);
 			const failed = r.filter((o) => o.error).length;
 			return { ok: !failed, summary: `${r.length - failed} menus written, ${r.reduce((n, o) => n + o.dropped.length, 0)} items dropped, ${failed} failed` };

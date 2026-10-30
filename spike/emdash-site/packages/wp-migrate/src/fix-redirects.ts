@@ -29,7 +29,7 @@ export interface RedirectsReport {
 
 export async function fixRedirects(options: FixRedirectsOptions): Promise<RedirectsReport> {
 	const { mcp, rest, dryRun, log = () => {} } = options;
-	const collections = { post: "posts", page: "pages", ...options.collections };
+	const collections = options.collections ?? {};
 
 	const infos = await listCollections(mcp);
 	const urlPatterns = Object.fromEntries(infos.filter((c) => c.urlPattern).map((c) => [c.slug, c.urlPattern!]));

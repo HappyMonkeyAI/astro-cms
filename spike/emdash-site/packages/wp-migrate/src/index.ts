@@ -1,6 +1,7 @@
 export { createBaselineRevisions, needsBaseline, pickUnchangedField, type BaselineOutcome, type BaselineReport } from "./baseline.ts";
 export { buildBlocks, detectProvider } from "./blocks.ts";
 export { goLiveCheck, type GoLiveIssue, type GoLiveReport } from "./check.ts";
+export { collectionsFromAnalysis, EMDASH_COLLECTIONS, readImportCollections, toCollection } from "./collections.ts";
 export { importWxr, type ImportOptions, type ImportSummary } from "./import-wxr.ts";
 export {
 	contentTypeFor,
