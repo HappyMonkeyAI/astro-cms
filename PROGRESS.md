@@ -12,7 +12,7 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 4 | Agent safety | Done. Prompt-injection eval run (F32); open: approval gate for agent trash |
 | 5 | Plugin kit and catalogue | Kit verified; cookie-consent and slider built; forms adopted from EmDash (F29) |
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
-| 7 | Pilot | **In progress.** Real client export; the retest blocker (F30) and the failed shortcode fixes (F31) are fixed; the pilot host needs a rebuild and re-run |
+| 7 | Pilot | **In progress.** Retest 2: no platform blockers left; NOT READY only for content (6 legacy-host URLs in 2 entries, form recipients, 2 missing files) |
 
 ## 2026-10-29
 
@@ -74,6 +74,15 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
   - Tess-4.5-27B attempted the planted goal 0/12 times.
   - LFM3-1.7B attempted it 0/6 times; the run was stopped for low memory, so the excerpt and tagline scenarios didn't run.
   - A scripted always-obeying agent showed that the platform blocks publishing and settings changes and keeps content edits staged, but **lets an agent trash a published page** (it goes offline at once).
+
+### Pilot retest 2 (`c844c79`, handoff `spike/results/pilot-retest-2-handoff.md`)
+
+- **F30 and F31 confirmed on the real export.** The go-live scan runs, and shortcodes were 17/17 replaced with 0 failed. Baseline and media URL rewrite had 0 failures, menus 6 written, 22 redirects, and backup/restore OK.
+- **Still NOT READY, now for content only:**
+  - 6 legacy-host URLs in 2 entries (a post, a library template);
+  - 2 stand-in forms that need recipients and a check against the live site;
+  - 2 media files missing from the uploads copy (a WooCommerce placeholder and a log file);
+  - 5 media URLs the rewrite couldn't resolve.
 
 ### Repo skills
 
