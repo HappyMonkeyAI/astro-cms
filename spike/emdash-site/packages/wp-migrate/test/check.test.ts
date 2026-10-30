@@ -7,7 +7,7 @@ import type { McpClient } from "../src/mcp-client.ts";
 import { describePrepared, prepareExport } from "../src/prepare.ts";
 import type { RestClient } from "../src/rest-client.ts";
 
-function site(opts: { pluginIssues?: unknown[]; entries?: { slug: string; data: unknown; draftRevisionId?: string }[]; pluginMissing?: boolean; scanError?: string }) {
+function site(opts: { pluginIssues?: unknown[]; entries?: { slug: string; data: unknown; draftRevisionId?: string }[]; pluginMissing?: boolean; scanError?: string; collections?: Record<string, unknown>[] }) {
 	const posted: { path: string; body: unknown }[] = [];
 	const rest: RestClient = {
 		async get() {
@@ -23,7 +23,7 @@ function site(opts: { pluginIssues?: unknown[]; entries?: { slug: string; data: 
 	const entries = opts.entries ?? [];
 	const mcp: McpClient = {
 		async call(tool: string, args: any) {
-			if (tool === "schema_list_collections") return { items: [{ slug: "posts" }] };
+			if (tool === "schema_list_collections") return { items: opts.collections ?? [{ slug: "posts" }] };
 			if (tool === "content_list") return { items: args.status === "published" ? entries.map((e) => ({ id: e.slug })) : [] };
 			if (tool === "content_get") return { item: { status: "published", ...entries.find((e) => e.slug === args.id) } };
 			throw new Error(tool);
@@ -69,6 +69,40 @@ test("a site without migration-guard fails loudly instead of reporting ready", a
 test("a scan that errors is reported as a scan failure, not a missing plugin", async () => {
 	const scanError = "POST /plugins/migration-guard/scan -> 400: duplicate key value violates unique constraint";
 	await assert.rejects(goLiveCheck({ ...site({ scanError }), legacyHosts: [] }), /^Error: migration-guard scan failed, .*duplicate key/);
+});
+
+test("issues in collections visitors can't reach are listed for review, not blocking", async () => {
+	const flagged = (collection: string, slug: string) => ({ collection, entryId: slug, entrySlug: slug, legacyUrls: 2 });
+	const report = await goLiveCheck({
+		...site({
+			pluginIssues: [flagged("elementor_library", "podcast-template"), flagged("hidden", "h"), flagged("posts", "episode")],
+			collections: [
+				{ slug: "posts", urlPattern: "/posts/{slug}" },
+				{ slug: "elementor_library" }, // EmDash omits urlPattern when there is none
+				{ slug: "hidden", urlPattern: "/hidden/{slug}", routable: false },
+			],
+		}),
+		legacyHosts: [],
+	});
+	assert.equal(report.ready, false, "the public post still blocks");
+	assert.deepEqual(report.issues.map((i) => i.collection), ["posts"]);
+	assert.deepEqual(report.notPublic.map((i) => i.collection), ["elementor_library", "hidden"]);
+
+	const onlyTemplate = await goLiveCheck({
+		...site({ pluginIssues: [flagged("elementor_library", "podcast-template")], collections: [{ slug: "posts", urlPattern: "/posts/{slug}" }, { slug: "elementor_library", urlPattern: "" }] }),
+		legacyHosts: [],
+	});
+	assert.equal(onlyTemplate.ready, true);
+	assert.equal(onlyTemplate.notPublic.length, 1);
+});
+
+test("fails closed: a collection without URL information, or one not in the list, still blocks", async () => {
+	const flagged = { collection: "mystery", entryId: "m", entrySlug: "m", legacyUrls: 1 };
+	for (const collections of [[{ slug: "mystery" }], [{ slug: "posts", urlPattern: "/posts/{slug}" }]]) {
+		const report = await goLiveCheck({ ...site({ pluginIssues: [flagged], collections }), legacyHosts: [] });
+		assert.equal(report.ready, false);
+		assert.deepEqual(report.notPublic, []);
+	}
 });
 
 test("go-live issues use the entry slug migration-guard records", async () => {

@@ -160,6 +160,10 @@ if (command === "preflight" || command === "prepare") {
 		console.log(`${report.pendingDrafts.length} published entr${report.pendingDrafts.length === 1 ? "y has" : "ies have"} unpublished changes to review (not scanned; migration-guard blocks publishing leftovers):`);
 		for (const d of report.pendingDrafts.slice(0, 20)) console.log(`  - ${d.collection}/${d.slug}`);
 	}
+	if (report.notPublic.length) {
+		console.log(`${report.notPublic.length} issue(s) in collections with no public URL, to review (not blocking; visitors can't reach them):`);
+		for (const issue of report.notPublic.slice(0, 20)) console.log(`  - ${issue.collection}/${issue.slug}: ${issue.problem}`);
+	}
 	process.exitCode = report.ready ? 0 : 1;
 } else if (command === "media-metadata" || command === "baseline") {
 	const prepared = option("--prepared");

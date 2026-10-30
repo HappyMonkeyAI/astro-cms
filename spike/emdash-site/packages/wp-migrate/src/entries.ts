@@ -11,6 +11,23 @@ const STATUSES = ["draft", "published", "scheduled"] as const;
 export interface CollectionInfo {
 	slug: string;
 	urlPattern?: string;
+	routable?: boolean;
+}
+
+/**
+ * Whether visitors can reach a collection's entries, judged against the whole collection list.
+ * EmDash omits `urlPattern` when a collection has none (e.g. imported page-builder templates), so a
+ * missing pattern means "no public URL" only when the list reports patterns at all. Fails closed:
+ * an unknown collection, or a list with no URL information, counts as public.
+ */
+export function publicCollections(collections: CollectionInfo[]): (slug: string) => boolean {
+	const reportsUrls = collections.some((c) => c.urlPattern);
+	return (slug) => {
+		const c = collections.find((x) => x.slug === slug);
+		if (!c) return true;
+		if (c.routable === false) return false;
+		return !reportsUrls || Boolean(c.urlPattern);
+	};
 }
 
 export async function listCollections(mcp: McpClient): Promise<CollectionInfo[]> {

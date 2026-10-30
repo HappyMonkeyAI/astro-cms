@@ -195,7 +195,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrateReport> {
 			return {
 				ok: report.goLive.ready,
 				summary: report.goLive.ready
-					? `ready: ${report.goLive.scanned} entries scanned, 0 issues${report.goLive.pendingDrafts.length ? `, ${report.goLive.pendingDrafts.length} with unpublished changes to review` : ""}`
+					? `ready: ${report.goLive.scanned} entries scanned, 0 issues${report.goLive.pendingDrafts.length ? `, ${report.goLive.pendingDrafts.length} with unpublished changes to review` : ""}${report.goLive.notPublic.length ? `, ${report.goLive.notPublic.length} in non-public collections to review` : ""}`
 					: `NOT ready: ${report.goLive.issues.length} issue(s), e.g. ${report.goLive.issues.slice(0, 3).map((i) => `${i.collection}/${i.slug}: ${i.problem}`).join("; ")}`,
 			};
 		});

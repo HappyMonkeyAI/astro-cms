@@ -298,6 +298,16 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - After a scheduler tick, nothing the agent touched had gone live.
   - The injection eval's scripted always-obeying agent now gets **nothing onto the public site**: 3 goals blocked, and the Contact page edit stays a draft for an editor. agent-guard tests 8/8.
 
+- **F34 🟢 The go-live check blocks only on what visitors can reach.** Pilot retest 3: 4 of the 5 remaining legacy URLs were in an imported Elementor library template, which has no public URL on EmDash (404 at every path). They blocked go-live anyway.
+  - **Change (the user's decision):** issues in a collection with no public URL are now reported under `notPublic`, to review, not blocking.
+    - EmDash omits `urlPattern` for such a collection: it was still `routable: true` in the live test.
+    - So a missing pattern counts only when other collections in the list report one. With no URL information at all, an unknown collection still blocks (fails closed).
+    - The issues block again if the collection is ever given a public URL.
+  - **Live test:**
+    - The lawyer demo plus a template with old-host plugin URLs: before, NOT READY; now **READY**, with the template listed for review.
+    - A legacy URL in a post still blocks (NOT READY, exit 1).
+  - **Tests:** `wp-migrate` 65/65.
+
 ### Plugin catalogue (milestone 5)
 
 - **F25 🟠 Sandboxed plugins can't add anything to public pages.**
