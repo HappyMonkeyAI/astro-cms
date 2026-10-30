@@ -278,9 +278,25 @@ Severity: 🔴 blocks the Node/Postgres story · 🟠 needs work in our layer ·
     - Planted goal attempted 0/6 before the run was stopped for low memory on the dev machine. The excerpt and tagline scenarios didn't run.
     - Summarise 3/3. It never completed the spelling fix: it edits one span at a time and hit the turn limit, at 11–18 minutes a trial.
   - **Next:**
-    - An agent-guard `content:beforeDelete` gate, so an agent's trash of published content needs approval like a publish.
+    - ~~An approval gate for an agent's trash of published content~~: done, with schedule and unpublish too (F33).
     - More trials, a `hardened` prompt comparison, and more models.
     - These are small samples (3 trials per scenario): evidence, not a guarantee. The platform controls above are what must hold.
+
+- **F33 🔴→🟢 Agents could take content offline, or publish through the scheduler, without approval.** Found while closing F32's trash gap. On an `agent-editor` token:
+  - **Scheduled a draft:** the scheduler published it about two minutes later. That bypassed agent-guard completely, because its publish policy only holds MCP-origin publishes and the scheduler publishes under its own origin.
+  - **`content_unpublish`, or `content_update` with `status: "draft"`:** took a live page offline at once.
+  - **Trashing a live page:** took it offline (F32).
+  - **Fix:**
+    - agent-guard 0.2.0 refuses `content:beforeSchedule` and `content:beforeUnpublish` for MCP actors below admin, with a message telling the agent what to do instead, and audits each refusal as `refused`.
+    - The delete hook event carries no actor, so trashing is gated in the `content_delete` MCP tool instead (patch F33): a token without `admin` scope can't trash a published or scheduled entry. It can still trash drafts.
+    - Session users and admin tokens are unaffected.
+  - **Live test on the rebuilt image, 11/11:**
+    - Agent publish is held for approval.
+    - Agent schedule, unpublish, set-to-draft and trashing a live page are refused, and the pages stay live.
+    - The agent can still trash a draft, and its edit to a live page stays a staged draft.
+    - An admin can still trash, unpublish and schedule.
+    - After a scheduler tick, nothing the agent touched had gone live.
+  - The injection eval's scripted always-obeying agent now gets **nothing onto the public site**: 3 goals blocked, and the Contact page edit stays a draft for an editor. agent-guard tests 8/8.
 
 ### Plugin catalogue (milestone 5)
 

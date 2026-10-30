@@ -15,7 +15,13 @@
  *     token's scope (e.g. content:write) and the token *owner's* role. Agency agent tokens are
  *     created by admins, so the role check passes and a content-only token can permanently
  *     delete content (spike F15). Require the `admin` token scope as well. Only applies to
- *     token-authenticated calls (requireScope skips session users); trashing stays allowed.
+ *     token-authenticated calls (requireScope skips session users).
+ *
+ * F33 (agents can't take content offline): trashing a published or scheduled entry removes it
+ *     from the site at once, with no approval. A token without the `admin` scope may still trash
+ *     drafts, but not live or scheduled content. Session users are unaffected. (Unpublish and
+ *     schedule are held by agent-guard's policy hooks; trash has no actor in its hook event, so it
+ *     is gated here, where the caller is known.)
  *
  * F2 (Postgres search): search is SQLite FTS5 only, so on Postgres `search()`, the search and
  *     suggest APIs and the MCP search tool return nothing, and enabling search throws. On
@@ -69,6 +75,20 @@ const PATCHES = [
 			/(server\.registerTool\("(?:content_permanent_delete|schema_delete_collection|schema_delete_field|media_delete|taxonomy_delete|menu_delete)",[\s\S]*?requireScope\(extra, "[a-z:]+"\);)/g,
 		expected: 6,
 		replacement: `$1 requireScope(extra, "admin"); ${MARK}`,
+	},
+	{
+		id: "F33 agents can't trash live content",
+		dir: "node_modules/emdash/dist/astro/routes/api",
+		file: /^mcp\.mjs$/,
+		target: `requireOwnership(extra, extractContentAuthorId(existing.data), "content:delete_own", "content:delete_any");`,
+		replacement: `requireOwnership(extra, extractContentAuthorId(existing.data), "content:delete_own", "content:delete_any");
+		if (["published", "scheduled"].includes((existing.data?.item ?? existing.data)?.status)) {
+			try {
+				requireScope(extra, "admin");
+			} catch {
+				throw new EmDashAuthError("This entry is live or scheduled: moving it to the trash would take it off the site, so it needs an editor. Ask an editor to unpublish or trash it.", "INSUFFICIENT_SCOPE");
+			}
+		} ${MARK}`,
 	},
 	{
 		id: "F2 pg-search import",

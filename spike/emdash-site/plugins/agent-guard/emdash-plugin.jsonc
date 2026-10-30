@@ -7,10 +7,11 @@
 	"license": "MIT",
 	"author": { "name": "astro-cms spike" },
 	"security": { "email": "security@example.com" },
-	"description": "AI agents can't publish on their own: MCP publishes by non-admins become approval requests an editor decides",
+	"description": "AI agents can't publish, schedule or unpublish on their own: MCP publishes by non-admins become requests an editor approves",
 
 	// Trust contract.
-	//  - hooks.content-policy:register: the beforePublish policy that turns agent publishes into requests
+	//  - hooks.content-policy:register: the beforePublish policy that turns agent publishes into
+	//    requests, and the beforeSchedule/beforeUnpublish policies that refuse them for agents
 	//  - content:read: read content for the request list
 	//  - content:publish: lets the plugin (not the agent) publish an approved entry, fenced on the
 	//    reviewed revision (_rev), and read that revision via getVersioned

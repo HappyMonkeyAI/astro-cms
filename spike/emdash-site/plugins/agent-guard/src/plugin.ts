@@ -8,6 +8,11 @@ import { z } from "zod";
  * rejected and recorded as an approval request. Everything else is allowed, including the
  * plugin's own publish after an editor approves.
  *
+ * Agents also can't schedule (the scheduler would publish without review) or unpublish (it takes
+ * content off the site): content:beforeSchedule and content:beforeUnpublish refuse both for MCP
+ * actors below admin. Trashing live content is gated in the MCP tool itself (patch F33), because the
+ * delete hook event carries no actor.
+ *
  * Revision fencing: the request stores the entry's `_rev` (from content.getVersioned) as seen when
  * the agent tried to publish. Approval publishes with that same `_rev`; if the draft changed since,
  * nothing is published and the request becomes "stale" (the agent must publish again, which
@@ -72,6 +77,27 @@ async function audit(ctx: Ctx, record: Omit<AuditRecord, "at">) {
 
 const originName = (origin: { source: string; pluginId?: string }) =>
 	origin.source === "plugin" ? `plugin:${origin.pluginId}` : origin.source;
+
+/** An agent action: it came through MCP and the actor is below admin (a missing actor counts as below) */
+const isAgentAction = (event: { origin: { source: string }; actor?: { role?: unknown } }) =>
+	event.origin.source === "mcp" && (typeof event.actor?.role !== "number" || event.actor.role < ADMIN_ROLE);
+
+/**
+ * Policy for actions an agent may not take at all (F33): scheduling a publish would let the scheduler
+ * publish without review, and unpublishing takes content off the site. Agents are told what to do instead.
+ */
+function refuseAgentAction(action: string, reason: string) {
+	return async (event: { collection: string; content: unknown; origin: { source: string; pluginId?: string }; actor?: { id?: string; role?: unknown } }, ctx: unknown) => {
+		const base = { collection: event.collection, entryId: asString(asRecord(event.content).id), origin: originName(event.origin), actorId: event.actor?.id ?? null };
+		if (!isAgentAction(event)) {
+			await audit(ctx as Ctx, { event: "policy", ...base, decision: "allowed", reason: action });
+			return;
+		}
+		// "refused", not "rejected": rejected counts held publishes on the approvals page
+		await audit(ctx as Ctx, { event: "policy", ...base, decision: "refused", reason: `${action}: ${reason}` });
+		return { cancel: true as const, reason };
+	};
+}
 
 // ---------------------------------------------------------------- decisions
 
@@ -207,9 +233,7 @@ const plugin: SandboxedPlugin = {
 			const c = ctx as Ctx;
 			const content = asRecord(event.content);
 			const entryId = asString(content.id);
-			const role = event.actor?.role;
-			const belowAdmin = typeof role !== "number" || role < ADMIN_ROLE;
-			const held = event.origin.source === "mcp" && belowAdmin;
+			const held = isAgentAction(event);
 			const slug = asString(content.slug);
 			const base = { collection: event.collection, entryId, origin: originName(event.origin), actorId: event.actor?.id ?? null };
 
@@ -248,6 +272,14 @@ const plugin: SandboxedPlugin = {
 			await audit(c, { event: "policy", ...base, decision: "rejected", reason });
 			return { cancel: true, reason };
 		},
+		"content:beforeSchedule": refuseAgentAction(
+			"schedule",
+			"Agents can't schedule publishing, because a scheduled publish goes live without review. Use content_publish instead: it asks an editor to approve.",
+		),
+		"content:beforeUnpublish": refuseAgentAction(
+			"unpublish",
+			"Agents can't take content off the site. Ask an editor to unpublish it.",
+		),
 	},
 
 	routes: {

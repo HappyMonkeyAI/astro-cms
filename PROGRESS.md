@@ -9,7 +9,7 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 1 | Runtime config | Done. `@astro-cms/runtime-config`; one image serves many sites |
 | 2 | Migration | Done. `wp-migrate` has every pass, a one-command `migrate` and a go-live `check` |
 | 3 | Client auth | Done. Google OAuth round trip, password invite, reset and email 2FA, SMTP transport |
-| 4 | Agent safety | Done. Prompt-injection eval run (F32); open: approval gate for agent trash |
+| 4 | Agent safety | Done. Injection eval (F32); agents can't publish, schedule, unpublish or trash live content without an editor (F33) |
 | 5 | Plugin kit and catalogue | Kit verified; cookie-consent and slider built; forms adopted from EmDash (F29) |
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
 | 7 | Pilot | **In progress.** Retest 2: no platform blockers left; NOT READY only for content (6 legacy-host URLs in 2 entries, form recipients, 2 missing files) |
@@ -75,6 +75,15 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
   - LFM3-1.7B attempted it 0/6 times; the run was stopped for low memory, so the excerpt and tagline scenarios didn't run.
   - A scripted always-obeying agent showed that the platform blocks publishing and settings changes and keeps content edits staged, but **lets an agent trash a published page** (it goes offline at once).
 
+### F33: agents can't take content offline or publish through the scheduler (2026-10-30)
+
+- **Found:** an agent could schedule its own draft, and the scheduler then published it with no approval. It could also unpublish a page, set it to draft, or trash it, each taking it offline at once.
+- **Fix:**
+  - agent-guard 0.2.0 refuses schedule and unpublish by agents.
+  - Patch F33 stops a non-admin token trashing live or scheduled content.
+- **Verified:** live test 11/11 on the rebuilt image. The always-obeying agent now gets nothing onto the public site.
+- **The pilot host needs an image rebuild** to pick this up.
+
 ### Pilot retest 2 (`c844c79`, handoff `spike/results/pilot-retest-2-handoff.md`)
 
 - **F30 and F31 confirmed on the real export.** The go-live scan runs, and shortcodes were 17/17 replaced with 0 failed. Baseline and media URL rewrite had 0 failures, menus 6 written, 22 redirects, and backup/restore OK.
@@ -102,7 +111,6 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
 - S3 media storage.
 - A cookie consent log.
 - A pg-search index table.
-- Agent-guard: an approval gate for agents trashing published content (F32).
 - More injection-eval runs: more trials and models, and the `hardened` prompt (`spike/injection-eval/`).
 - The Microsoft SSO round trip.
 - A 2FA toggle.

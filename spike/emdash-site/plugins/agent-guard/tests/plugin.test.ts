@@ -61,6 +61,21 @@ describe("policy (hook)", () => {
 			expect((await call(origin, editor)) ?? undefined).toBeUndefined();
 		}
 	});
+
+	it("refuses MCP schedules and unpublishes by non-admins without creating a request (F33)", async () => {
+		host = await createPluginTestHost();
+		const content = { id: "p1", slug: "p", data: { title: "P" } };
+		const schedule = (origin: object, actor?: object) =>
+			host!.invokeHook("content:beforeSchedule", { collection: "posts", origin, actor, content, scheduledAt: "2030-01-01T00:00:00.000Z" });
+		const unpublish = (origin: object, actor?: object) => host!.invokeHook("content:beforeUnpublish", { collection: "posts", origin, actor, content });
+		for (const hook of [schedule, unpublish]) {
+			expect(await hook(mcp, editor)).toMatchObject({ cancel: true, reason: expect.stringMatching(/agents can't/i) });
+			expect(await hook(mcp)).toMatchObject({ cancel: true });
+			expect((await hook(mcp, admin)) ?? undefined).toBeUndefined();
+			expect((await hook({ source: "api" }, editor)) ?? undefined).toBeUndefined();
+		}
+		expect(await host.storage("requests").list()).toHaveLength(0);
+	});
 });
 
 describe("approval flow on real content (runtime host)", () => {
