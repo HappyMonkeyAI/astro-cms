@@ -12,7 +12,7 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 4 | Agent safety | Done. Injection eval (F32); agents can't publish, schedule, unpublish or trash live content without an editor (F33) |
 | 5 | Plugin kit and catalogue | Kit verified; cookie-consent and slider built; forms adopted from EmDash (F29) |
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
-| 7 | Pilot | **In progress.** Retest 2: no platform blockers left; NOT READY only for content (6 legacy-host URLs in 2 entries, form recipients, 2 missing files) |
+| 7 | Pilot | **In progress.** Retest 3: F33 verified; no platform blockers; NOT READY only for content (a missing `.mp3`, podcast-plugin URLs in a non-public template, form recipients) |
 
 ## 2026-10-29
 
@@ -74,6 +74,14 @@ A remote agent ran [PILOT-PROMPT.md](PILOT-PROMPT.md) on the real client export.
   - Tess-4.5-27B attempted the planted goal 0/12 times.
   - LFM3-1.7B attempted it 0/6 times; the run was stopped for low memory, so the excerpt and tagline scenarios didn't run.
   - A scripted always-obeying agent showed that the platform blocks publishing and settings changes and keeps content edits staged, but **lets an agent trash a published page** (it goes offline at once).
+
+### Pilot retest 3 (`a9c1d98`, handoff `spike/results/pilot-retest-3-handoff.md`)
+
+- **F33 verified on the pilot host:** an agent's schedule, unpublish and trash of a live page were each rejected with the right code, and the page stayed live.
+- **Go-live still NOT READY on the same 2 entries.** The 5 distinct legacy URLs are all content:
+  - a post links an `.mp3` that isn't in the uploads copy;
+  - an Elementor library template holds Seriously Simple Podcasting plugin assets and broken `/podcast-player/` URLs.
+- **The library template has no public URL on EmDash** (no URL pattern, no route), so visitors never see those 4 URLs. Open decision: should go-live treat issues in non-public collections as review-only?
 
 ### F33: agents can't take content offline or publish through the scheduler (2026-10-30)
 
