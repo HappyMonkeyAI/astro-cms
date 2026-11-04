@@ -1,0 +1,77 @@
+---
+interface Props {
+	value: {
+		eyebrow?: string;
+		heading: string;
+		lead?: string;
+		primary_label?: string;
+		primary_href?: string;
+		secondary_label?: string;
+		secondary_href?: string;
+		tertiary_label?: string;
+		tertiary_href?: string;
+		video_url?: string;
+		poster_url?: string;
+	};
+	index?: number;
+	blockKey?: string;
+}
+
+const { value } = Astro.props;
+// Match live happymonkey.ai: muted looping header video behind the hero copy.
+const videoUrl = value.video_url?.trim() || "/videos/header-video.mp4";
+const posterUrl =
+	value.poster_url?.trim() || "/images/HappyMonkey-dark-logo.png";
+const showVideo = Boolean(videoUrl);
+---
+
+<section
+	class:list={["band", "hm-hero", { "hm-hero--video": showVideo }]}
+	aria-labelledby="hm-hero-heading"
+>
+	{
+		showVideo && (
+			<div class="hm-hero__media" aria-hidden="true">
+				<video
+					class="hm-hero__video"
+					autoplay
+					loop
+					muted
+					playsinline
+					poster={posterUrl}
+				>
+					<source src={videoUrl} type="video/mp4" />
+				</video>
+				<div class="hm-hero__overlay" />
+			</div>
+		)
+	}
+	<div class="frame hm-hero__content">
+		{value.eyebrow && <p class="eyebrow">{value.eyebrow}</p>}
+		<h1 id="hm-hero-heading" class="intro__title">{value.heading}</h1>
+		{value.lead && <p class="hm-hero__lead">{value.lead}</p>}
+		<div class="hm-hero__actions">
+			{
+				value.primary_href && value.primary_label && (
+					<a class="btn" href={value.primary_href}>
+						{value.primary_label}
+					</a>
+				)
+			}
+			{
+				value.secondary_href && value.secondary_label && (
+					<a class="btn btn--ghost" href={value.secondary_href}>
+						{value.secondary_label}
+					</a>
+				)
+			}
+			{
+				value.tertiary_href && value.tertiary_label && (
+					<a class="btn btn--ghost" href={value.tertiary_href}>
+						{value.tertiary_label}
+					</a>
+				)
+			}
+		</div>
+	</div>
+</section>

@@ -25,3 +25,6 @@ client-data/
 
 # Injection eval raw runs (transcripts); summaries go to spike/results
 spike/injection-eval/runs/
+
+# HappyMonkey theme Docker build staging tree
+spike/themes/happymonkey/.build/

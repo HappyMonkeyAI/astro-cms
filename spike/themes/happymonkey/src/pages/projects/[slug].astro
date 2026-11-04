@@ -1,0 +1,74 @@
+---
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import "../../styles/prose.css";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
+const { entry: project, cacheHint } = await getEmDashEntry("projects", slug);
+if (!project) return Astro.rewrite("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(project, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
+const img = project.data.featured_image as
+	| { src?: string; alt?: string }
+	| undefined;
+const external = project.data.external_url as string | undefined;
+---
+
+<Base
+	title={seo.title}
+	description={seo.description ?? project.data.summary}
+	canonical={seo.canonical}
+	image={seo.ogImage}
+	content={{ collection: "projects", id: project.data.id, slug: project.id }}
+>
+	<article class="band section">
+		<div class="frame" style="max-width:var(--content-width)">
+			<p class="eyebrow">Project</p>
+			<h1 class="intro__title">{project.data.title}</h1>
+			{project.data.summary && <p class="intro__subtitle">{project.data.summary}</p>}
+			{
+				img?.src && (
+					<img
+						class="hm-project-detail__media"
+						src={img.src}
+						alt={img.alt || String(project.data.title)}
+					/>
+				)
+			}
+			{
+				project.data.body && (
+					<div class="prose">
+						<PortableText value={project.data.body} />
+					</div>
+				)
+			}
+			{
+				external && (
+					<p style="margin-top:1.75rem">
+						<a class="btn" href={external} target="_blank" rel="noopener noreferrer">
+							Open project
+						</a>
+					</p>
+				)
+			}
+			<p style="margin-top:1rem">
+				<a class="arrow-link" href="/projects">← All projects</a>
+			</p>
+		</div>
+	</article>
+</Base>

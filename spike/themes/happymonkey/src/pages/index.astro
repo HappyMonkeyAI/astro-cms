@@ -1,0 +1,46 @@
+---
+import { getEmDashEntry } from "emdash";
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import Hero from "../components/blocks/Hero.astro";
+import ProseBand from "../components/blocks/ProseBand.astro";
+import ProjectGrid from "../components/blocks/ProjectGrid.astro";
+import ToolStrip from "../components/blocks/ToolStrip.astro";
+import InsightList from "../components/blocks/InsightList.astro";
+import CtaContact from "../components/blocks/CtaContact.astro";
+
+const components = defineBlockComponents({
+	hero: Hero,
+	prose_band: ProseBand,
+	project_grid: ProjectGrid,
+	tool_strip: ToolStrip,
+	insight_list: InsightList,
+	cta_contact: CtaContact,
+});
+
+const { entry: home, cacheHint } = await getEmDashEntry("pages", "home");
+if (Astro.cache?.enabled && cacheHint) Astro.cache.set(cacheHint);
+
+const layout = home?.data?.layout;
+const title = home?.data?.title ?? "HappyMonkey AI";
+const description =
+	"Full-stack software engineer working across AI agents, MCP systems, developer tools, and products.";
+---
+
+<Base title={title} description={description}>
+	{
+		layout && Array.isArray(layout) && layout.length > 0 ? (
+			<Blocks value={layout} components={components} />
+		) : (
+			<section class="band section">
+				<div class="frame empty-state">
+					<h1 class="empty-state__title">Home layout missing</h1>
+					<p class="empty-state__text">
+						Seed the <code>pages/home</code> entry with layout blocks, or claim
+						admin and compose the homepage.
+					</p>
+				</div>
+			</section>
+		)
+	}
+</Base>
