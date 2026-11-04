@@ -43,7 +43,24 @@ body {
 	backdrop-filter: blur(10px);
 }
 
-.brand__name span,
+.brand {
+	font-weight: 700;
+	font-size: 1.15rem;
+	gap: 0.65rem;
+}
+
+.brand__logo {
+	height: 40px;
+	width: auto;
+	max-width: none;
+}
+
+.brand__name {
+	max-width: none;
+	overflow: visible;
+	color: #f8fafc;
+}
+
 .brand__name .hm-accent {
 	color: var(--color-brand);
 }
