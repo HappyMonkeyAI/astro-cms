@@ -51,7 +51,16 @@ const sizes = {
 					/>
 				</div>
 			) : (
-				<div class="post__placeholder" />
+				<div class="post__placeholder" aria-hidden="true">
+					<img
+						class="post__placeholder-img"
+						src="/images/insights/placeholder.svg"
+						alt=""
+						width="720"
+						height="405"
+						loading="lazy"
+					/>
+				</div>
 			)
 		}
 	</a>
@@ -190,6 +199,13 @@ const sizes = {
 		);
 		background-size: 14px 14px;
 		mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+	}
+
+	.post__placeholder-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
 	}
 
 	/* Text */
