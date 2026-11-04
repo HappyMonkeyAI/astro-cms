@@ -339,3 +339,29 @@ body {
 	border: 1px solid var(--color-border);
 	margin-bottom: 1.5rem;
 }
+
+/* Footer recent insights: stack title above date (was inline-cramped) */
+footer.site-footer .site-footer__widgets li {
+	display: grid;
+	gap: 0.35rem;
+	align-content: start;
+}
+
+footer.site-footer .widget-recent-posts__link {
+	display: block;
+	line-height: 1.35;
+	color: #e2e8f0;
+	text-decoration: none;
+}
+
+footer.site-footer .widget-recent-posts__link:hover {
+	color: var(--color-brand);
+}
+
+footer.site-footer .widget-recent-posts__date {
+	display: block;
+	margin-top: 0.1rem;
+	font-size: 0.75rem;
+	color: var(--color-muted);
+	font-variant-numeric: tabular-nums;
+}

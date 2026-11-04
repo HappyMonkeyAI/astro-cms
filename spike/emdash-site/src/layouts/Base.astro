@@ -1355,6 +1355,30 @@ const year = new Date().getFullYear();
 				list-style: none;
 			}
 
+			/* Recent posts: title + date must stack (same pattern as post sidebar) */
+			.site-footer__widgets :global(.widget-recent-posts li) {
+				display: grid;
+				gap: 0.25rem;
+			}
+
+			.site-footer__widgets :global(.widget-recent-posts__link) {
+				display: block;
+				line-height: var(--leading-snug);
+				color: var(--color-text);
+				text-decoration: none;
+			}
+
+			.site-footer__widgets :global(.widget-recent-posts__link:hover) {
+				color: var(--color-brand);
+			}
+
+			.site-footer__widgets :global(.widget-recent-posts__date) {
+				display: block;
+				font-size: var(--font-size-xs);
+				color: var(--color-muted);
+				font-variant-numeric: tabular-nums;
+			}
+
 			.site-footer__bottom-inner {
 				display: flex;
 				flex-wrap: wrap;
