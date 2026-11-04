@@ -28,6 +28,16 @@ function logosFrom(paragraph: string): string[] | null {
 	return parts;
 }
 
+/** Monochrome marks in /images/stack — keyed by display name. */
+const STACK_ICONS: Record<string, string> = {
+	OpenAI: "/images/stack/openai.svg",
+	Anthropic: "/images/stack/anthropic.svg",
+	n8n: "/images/stack/n8n.svg",
+	LangChain: "/images/stack/langchain.svg",
+	"Relevance AI": "/images/stack/relevance-ai.svg",
+	Voiceflow: "/images/stack/voiceflow.svg",
+};
+
 const blocks = paragraphs.map((p) => {
 	const logos = logosFrom(p);
 	return logos ? ({ kind: "logos" as const, logos }) : ({ kind: "text" as const, text: p });
@@ -46,11 +56,24 @@ const blocks = paragraphs.map((p) => {
 					{blocks.map((b) =>
 						b.kind === "logos" ? (
 							<div class="hm-strip__logos" role="list">
-								{b.logos.map((name) => (
-									<div class="hm-client-logo" role="listitem">
-										{name}
-									</div>
-								))}
+								{b.logos.map((name) => {
+									const src = STACK_ICONS[name];
+									return (
+										<div class="hm-client-logo" role="listitem">
+											{src ? (
+												<img
+													class="hm-client-logo__mark"
+													src={src}
+													alt=""
+													width="28"
+													height="28"
+													loading="lazy"
+												/>
+											) : null}
+											<span class="hm-client-logo__name">{name}</span>
+										</div>
+									);
+								})}
 							</div>
 						) : (
 							<p>{b.text}</p>

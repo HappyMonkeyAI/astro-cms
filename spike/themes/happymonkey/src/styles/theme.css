@@ -157,16 +157,32 @@ body {
 }
 
 .hm-client-logo {
-	min-height: 3.5rem;
+	min-height: 4.5rem;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	opacity: 0.75;
+	gap: 0.55rem;
+	opacity: 0.78;
 	font-weight: 600;
-	font-size: 0.95rem;
+	font-size: 0.9rem;
 	color: #e2e8f0;
 	letter-spacing: 0.02em;
 	transition: opacity 0.2s ease;
+}
+
+.hm-client-logo__mark {
+	width: 1.75rem;
+	height: 1.75rem;
+	display: block;
+	object-fit: contain;
+	/* SVGs use currentColor; force light marks on dark strip */
+	filter: brightness(0) invert(0.92);
+}
+
+.hm-client-logo__name {
+	line-height: 1.2;
+	text-align: center;
 }
 
 .hm-client-logo:hover {
