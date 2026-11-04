@@ -1,0 +1,78 @@
+---
+import { getEmDashCollection } from "emdash";
+
+interface Props {
+	value: {
+		eyebrow?: string;
+		heading?: string;
+		description?: string;
+		limit?: number;
+	};
+	index?: number;
+	blockKey?: string;
+}
+
+const { value } = Astro.props;
+const limit = typeof value.limit === "number" && value.limit > 0 ? value.limit : 12;
+const { entries: projects, cacheHint } = await getEmDashCollection("projects", {
+	orderBy: { published_at: "desc" },
+	limit,
+});
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+function hrefFor(p: (typeof projects)[number]) {
+	const external = p.data.external_url as string | undefined;
+	if (external) return external;
+	return `/projects/${p.id}`;
+}
+---
+
+<section class="band section" id="recent-work" aria-labelledby="hm-projects-heading">
+	<div class="frame">
+		<div class="hm-section-head">
+			{value.eyebrow && <p class="eyebrow">{value.eyebrow}</p>}
+			<h2 id="hm-projects-heading" class="section-head__title">
+				{value.heading ?? "Projects"}
+			</h2>
+			{value.description && <p>{value.description}</p>}
+		</div>
+		<div class="hm-project-grid">
+			{
+				projects.map((p) => {
+					const img = p.data.featured_image as
+						| { src?: string; alt?: string }
+						| undefined;
+					const external = Boolean(p.data.external_url);
+					return (
+						<a
+							class="hm-card"
+							href={hrefFor(p)}
+							target={external ? "_blank" : undefined}
+							rel={external ? "noopener noreferrer" : undefined}
+						>
+							{img?.src ? (
+								<img
+									class="hm-card__img"
+									src={img.src}
+									alt={img.alt || String(p.data.title)}
+									loading="lazy"
+								/>
+							) : (
+								<div class="hm-card__img" aria-hidden="true" />
+							)}
+							<div class="hm-card__body">
+								<h3>{p.data.title}</h3>
+								{p.data.summary && <p>{p.data.summary}</p>}
+							</div>
+						</a>
+					);
+				})
+			}
+		</div>
+		{
+			projects.length === 0 && (
+				<p class="empty-state__text">No projects published yet.</p>
+			)
+		}
+	</div>
+</section>

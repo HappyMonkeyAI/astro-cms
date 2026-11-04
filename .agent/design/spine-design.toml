@@ -1,0 +1,16 @@
+# Spine Design for HappyMonkey EmDash dogfood staging
+base_url = "http://192.168.5.215:4510"
+allowed_origins = ["http://192.168.5.215:4510"]
+allowed_hosts = ["192.168.5.215", "127.0.0.1", "localhost"]
+
+[[views]]
+name = "home"
+route = "/"
+
+[[views]]
+name = "projects"
+route = "/projects"
+
+[[views]]
+name = "posts"
+route = "/posts"

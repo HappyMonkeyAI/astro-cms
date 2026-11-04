@@ -12,7 +12,23 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 4 | Agent safety | Done. Injection eval (F32); agents can't publish, schedule, unpublish or trash live content without an editor (F33) |
 | 5 | Plugin kit and catalogue | Kit verified; cookie-consent and slider built; forms adopted from EmDash (F29) |
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
-| 7 | Pilot | **In progress.** Retest 3: F33 verified. With F34, go-live should be blocked only by one content fix (a post's `.mp3` link); form recipients still need a human |
+| 7 | Pilot | **In progress.** Client WP pilot still NOT READY (content). HappyMonkey EmDash dogfood staging is up on `.215:4510` (see below). |
+
+## 2026-11-04
+
+### HappyMonkey icons & logos on staging
+
+Tools strip now uses live-site Font Awesome icons (`fa-robot`, etc.); proof band renders OpenAI/Anthropic/… as a client-logo strip. Image `f2cc7fb32725` on `.215:4510`.
+
+### HappyMonkey hero video on staging
+
+Restaged `astro-cms/site:happymonkey` on `.215:4510` with the live-site header background (`/videos/header-video.mp4` + poster). Homepage renders `hm-hero--video`; asset HTTP 200.
+
+## 2026-11-03
+
+### HappyMonkey EmDash dogfood (B) — staging on `192.168.5.215:4510`
+
+Dogfood brand site on EmDash (not `wp-migrate`). Theme overlay `spike/themes/happymonkey/`; image `astro-cms/site:happymonkey`; compose site `/home/stephen/sites/happymonkey`. Smoke **13/13**. Handoff: [`spike/results/happymonkey-dogfood-handoff.md`](spike/results/happymonkey-dogfood-handoff.md). Brief: [`DOGFOOD-PROMPT.md`](DOGFOOD-PROMPT.md). Live `happymonkey.ai` cutover deferred ([`CUTOVER.md`](spike/themes/happymonkey/CUTOVER.md)).
 
 ## 2026-10-29
 

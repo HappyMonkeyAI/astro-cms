@@ -1,0 +1,67 @@
+---
+interface Props {
+	value: {
+		eyebrow?: string;
+		heading?: string;
+		body?: string;
+		location?: string;
+		email?: string;
+		phone?: string;
+		phone_tel?: string;
+	};
+	index?: number;
+	blockKey?: string;
+}
+
+const { value } = Astro.props;
+const email = value.email ?? "info@happymonkey.ai";
+const mailto = `mailto:${email}?subject=${encodeURIComponent("New Customer Enquiry")}`;
+---
+
+<section class="band section" id="contact" aria-labelledby="hm-contact-heading">
+	<div class="frame hm-contact">
+		<div>
+			{value.eyebrow && <p class="eyebrow">{value.eyebrow}</p>}
+			<h2 id="hm-contact-heading" class="section-head__title">
+				{value.heading ?? "Start a conversation"}
+			</h2>
+			{value.body && <p style="color:var(--color-text-secondary)">{value.body}</p>}
+			{
+				value.location && (
+					<div class="hm-contact-item">
+						<span aria-hidden="true">⌂</span>
+						<div>
+							<strong>Headquarters</strong>
+							<span>{value.location}</span>
+						</div>
+					</div>
+				)
+			}
+			<div class="hm-contact-item">
+				<span aria-hidden="true">✉</span>
+				<div>
+					<strong>Email</strong>
+					<a href={mailto}>{email}</a>
+				</div>
+			</div>
+			{
+				value.phone && (
+					<div class="hm-contact-item">
+						<span aria-hidden="true">☎</span>
+						<div>
+							<strong>Phone</strong>
+							<a href={value.phone_tel ? `tel:${value.phone_tel}` : undefined}>{value.phone}</a>
+						</div>
+					</div>
+				)
+			}
+		</div>
+		<div>
+			<p style="color:var(--color-text-secondary);margin-bottom:1rem">
+				Or email <a href={mailto}>{email}</a> directly. Staging uses mailto until
+				form recipients are configured in admin.
+			</p>
+			<a class="btn" href={mailto}>Email HappyMonkey</a>
+		</div>
+	</div>
+</section>

@@ -1,0 +1,57 @@
+---
+import { getEmDashCollection } from "emdash";
+
+interface Props {
+	value: {
+		eyebrow?: string;
+		heading?: string;
+		description?: string;
+		limit?: number;
+	};
+	index?: number;
+	blockKey?: string;
+}
+
+const { value } = Astro.props;
+const limit = typeof value.limit === "number" && value.limit > 0 ? value.limit : 3;
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+	limit,
+});
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+function dateLabel(iso: unknown) {
+	if (!iso) return "";
+	const d = iso instanceof Date ? iso : new Date(String(iso));
+	if (Number.isNaN(d.valueOf())) return "";
+	return d.toISOString().slice(0, 10);
+}
+---
+
+<section class="band section" id="latest-insights" aria-labelledby="hm-insights-heading">
+	<div class="frame">
+		<div class="hm-section-head">
+			{value.eyebrow && <p class="eyebrow">{value.eyebrow}</p>}
+			<h2 id="hm-insights-heading" class="section-head__title">
+				{value.heading ?? "Latest from the build log"}
+			</h2>
+			{value.description && <p>{value.description}</p>}
+		</div>
+		<div class="hm-insight-grid">
+			{
+				posts.map((post) => (
+					<a class="hm-card" href={`/posts/${post.id}`}>
+						<div class="hm-card__body">
+							<div class="hm-insight-meta">{dateLabel(post.data.published_at)}</div>
+							<h3>{post.data.title}</h3>
+							{post.data.excerpt && <p>{post.data.excerpt}</p>}
+						</div>
+					</a>
+				))
+			}
+		</div>
+		<p style="text-align:center;margin-top:1.75rem">
+			<a class="btn" href="/posts">All Insights</a>
+		</p>
+	</div>
+</section>

@@ -1,0 +1,63 @@
+---
+interface Props {
+	value: {
+		eyebrow?: string;
+		heading?: string;
+		body?: string;
+		align?: string;
+	};
+	index?: number;
+	blockKey?: string;
+}
+
+const { value } = Astro.props;
+const centered = value.align !== "start";
+const paragraphs = (value.body ?? "")
+	.split(/\n\n+/)
+	.map((p) => p.trim())
+	.filter(Boolean);
+
+/** Live site client strip: names joined with · or | */
+function logosFrom(paragraph: string): string[] | null {
+	if (!/[·|]/.test(paragraph)) return null;
+	const parts = paragraph
+		.split(/\s*[·|]\s*/)
+		.map((s) => s.trim())
+		.filter(Boolean);
+	if (parts.length < 2 || parts.some((p) => p.length > 24 || /\s{2,}/.test(p))) return null;
+	return parts;
+}
+
+const blocks = paragraphs.map((p) => {
+	const logos = logosFrom(p);
+	return logos ? ({ kind: "logos" as const, logos }) : ({ kind: "text" as const, text: p });
+});
+---
+
+<section class={`band section ${centered ? "hm-strip" : ""}`}>
+	<div class={`frame ${centered ? "hm-section-head" : "hm-about"}`}>
+		<div>
+			{value.eyebrow && <p class="eyebrow">{value.eyebrow}</p>}
+			{value.heading && <h2 class="section-head__title">{value.heading}</h2>}
+		</div>
+		{
+			blocks.length > 0 && (
+				<div class={centered ? "hm-strip__body" : "prose"}>
+					{blocks.map((b) =>
+						b.kind === "logos" ? (
+							<div class="hm-strip__logos" role="list">
+								{b.logos.map((name) => (
+									<div class="hm-client-logo" role="listitem">
+										{name}
+									</div>
+								))}
+							</div>
+						) : (
+							<p>{b.text}</p>
+						),
+					)}
+				</div>
+			)
+		}
+	</div>
+</section>

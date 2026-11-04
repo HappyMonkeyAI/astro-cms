@@ -1,0 +1,71 @@
+---
+import { getEmDashCollection, getSiteSettings } from "emdash";
+import Base from "../../layouts/Base.astro";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+
+const [{ entries: projects, cacheHint }, settings] = await Promise.all([
+	getEmDashCollection("projects", {
+		orderBy: { published_at: "desc" },
+		limit: 48,
+	}),
+	getSiteSettings(),
+]);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle } = resolveBlogSiteIdentity(settings);
+
+function hrefFor(p: (typeof projects)[number]) {
+	const external = p.data.external_url as string | undefined;
+	if (external) return external;
+	return `/projects/${p.id}`;
+}
+---
+
+<Base title={`Projects — ${siteTitle}`} description="Selected software experiments and products.">
+	<header class="band intro">
+		<div class="frame hm-section-head" style="text-align:left;margin:0">
+			<p class="eyebrow">Selected work</p>
+			<h1 class="intro__title">Projects</h1>
+			<p class="intro__subtitle">
+				Software experiments and products across AI, developer tools, data, and
+				interactive experiences.
+			</p>
+		</div>
+	</header>
+	<section class="band section">
+		<div class="frame">
+			<div class="hm-project-grid">
+				{
+					projects.map((p) => {
+						const img = p.data.featured_image as
+							| { src?: string; alt?: string }
+							| undefined;
+						const external = Boolean(p.data.external_url);
+						return (
+							<a
+								class="hm-card"
+								href={hrefFor(p)}
+								target={external ? "_blank" : undefined}
+								rel={external ? "noopener noreferrer" : undefined}
+							>
+								{img?.src ? (
+									<img
+										class="hm-card__img"
+										src={img.src}
+										alt={img.alt || String(p.data.title)}
+										loading="lazy"
+									/>
+								) : (
+									<div class="hm-card__img" aria-hidden="true" />
+								)}
+								<div class="hm-card__body">
+									<h2 style="font-size:1.05rem;margin:0 0 0.4rem">{p.data.title}</h2>
+									{p.data.summary && <p>{p.data.summary}</p>}
+								</div>
+							</a>
+						);
+					})
+				}
+			</div>
+		</div>
+	</section>
+</Base>

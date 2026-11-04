@@ -1,0 +1,75 @@
+---
+import { getEmDashCollection } from "emdash";
+
+interface Props {
+	value: {
+		eyebrow?: string;
+		heading?: string;
+		description?: string;
+		github_url?: string;
+	};
+	index?: number;
+	blockKey?: string;
+}
+
+/** Live-site Font Awesome classes, keyed by tool slug (and title fallback). */
+const TOOL_ICONS: Record<string, string> = {
+	monkeyswarm: "fa-robot",
+	"vibes-desktop-tool": "fa-desktop",
+	"vibes-desktop": "fa-desktop",
+	vibes: "fa-terminal",
+	agentsprotocol: "fa-network-wired",
+	"mcp-daw": "fa-music",
+	threegameforge: "fa-puzzle-piece",
+	"resource-sentinel": "fa-shield-alt",
+	"astro-cms": "fa-server",
+};
+
+function iconFor(t: { id?: string; slug?: string; data: Record<string, unknown> }) {
+	const fromField = String(t.data.icon || "").replace(/^fas\s+/, "").trim();
+	if (fromField) return fromField.startsWith("fa-") ? fromField : `fa-${fromField}`;
+	const key = String(t.id || t.slug || t.data.title || "")
+		.toLowerCase()
+		.trim();
+	return TOOL_ICONS[key] || "fa-cube";
+}
+
+const { value } = Astro.props;
+const { entries: tools, cacheHint } = await getEmDashCollection("tools", {
+	orderBy: { published_at: "desc" },
+	limit: 24,
+});
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+
+<section class="band section hm-tools" aria-labelledby="hm-tools-heading">
+	<div class="frame">
+		<div class="hm-section-head">
+			{value.eyebrow && <p class="eyebrow">{value.eyebrow}</p>}
+			<h2 id="hm-tools-heading" class="section-head__title">
+				{value.heading ?? "Tools & experiments"}
+			</h2>
+			{value.description && <p>{value.description}</p>}
+		</div>
+		<div class="hm-tool-grid">
+			{
+				tools.map((t) => (
+					<div class="hm-tool">
+						<i class={`fas ${iconFor(t)} hm-tool__icon`} aria-hidden="true" />
+						<div class="hm-tool__name">{t.data.title}</div>
+						{t.data.tagline && <div class="hm-tool__tag">{t.data.tagline}</div>}
+					</div>
+				))
+			}
+		</div>
+		{
+			value.github_url && (
+				<p class="hm-tools__github">
+					<a class="btn btn--ghost btn--sm" href={value.github_url} target="_blank" rel="noopener noreferrer">
+						<i class="fab fa-github" aria-hidden="true" /> View on GitHub
+					</a>
+				</p>
+			)
+		}
+	</div>
+</section>
