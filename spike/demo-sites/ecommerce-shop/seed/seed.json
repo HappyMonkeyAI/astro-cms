@@ -1,0 +1,105 @@
+{
+	"siteSettings": {
+		"title": "E-commerce Demo Shop",
+		"tagline": "Browse and buy products online"
+	},
+	"collections": [
+		{
+			"name": "products",
+			"label": "Products",
+			"fields": [
+				{
+					"name": "title",
+					"label": "Title",
+					"type": "text",
+					"required": true
+				},
+				{
+					"name": "slug",
+					"label": "Slug",
+					"type": "text",
+					"required": true
+				},
+				{
+					"name": "description",
+					"label": "Description",
+					"type": "text"
+				},
+				{
+					"name": "price",
+					"label": "Price (in cents)",
+					"type": "number",
+					"required": true
+				},
+				{
+					"name": "featured_image",
+					"label": "Featured Image",
+					"type": "media"
+				},
+				{
+					"name": "in_stock",
+					"label": "In Stock",
+					"type": "boolean",
+					"default": true
+				}
+			],
+			"urlPattern": "/products/[slug]",
+			"supports": {
+				"translations": false
+			}
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "category",
+			"label": "Categories",
+			"collection": "products"
+		}
+	],
+	"entries": [
+		{
+			"collection": "products",
+			"id": "wireless-headphones",
+			"data": {
+				"title": "Wireless Headphones",
+				"slug": "wireless-headphones",
+				"description": "High-quality wireless headphones with noise cancellation.",
+				"price": 7999,
+				"in_stock": true
+			}
+		},
+		{
+			"collection": "products",
+			"id": "coffee-mug",
+			"data": {
+				"title": "Ceramic Coffee Mug",
+				"slug": "coffee-mug",
+				"description": "Classic ceramic coffee mug, 12oz capacity.",
+				"price": 1499,
+				"in_stock": true
+			}
+		},
+		{
+			"collection": "products",
+			"id": "notebook",
+			"data": {
+				"title": "Leather Notebook",
+				"slug": "notebook",
+				"description": "Premium leather notebook with lined pages.",
+				"price": 2499,
+				"in_stock": true
+			}
+		},
+		{
+			"collection": "products",
+			"id": "water-bottle",
+			"data": {
+				"title": "Stainless Water Bottle",
+				"slug": "water-bottle",
+				"description": "Insulated stainless steel water bottle, 32oz.",
+				"price": 3499,
+				"in_stock": true
+			}
+		}
+	]
+}

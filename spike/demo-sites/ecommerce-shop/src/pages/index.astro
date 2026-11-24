@@ -1,0 +1,136 @@
+---
+import Base from "../layouts/Base.astro";
+import ProductCard from "../components/ProductCard.astro";
+import CartSidebar from "../components/CartSidebar.astro";
+import { useState } from "react";
+
+export const prerender = false;
+
+// Mock products data (in a real site, this would come from EmDash collections)
+const mockProducts = [
+	{
+		id: "prod-1",
+		slug: "wireless-headphones",
+		title: "Wireless Headphones",
+		price: 7999,
+		image: { src: "/images/products/headphones.jpg", alt: "Wireless Headphones" },
+		category: "Electronics",
+	},
+	{
+		id: "prod-2",
+		slug: "coffee-mug",
+		title: "Ceramic Coffee Mug",
+		price: 1499,
+		image: { src: "/images/products/mug.jpg", alt: "Ceramic Coffee Mug" },
+		category: "Home",
+	},
+	{
+		id: "prod-3",
+		slug: "notebook",
+		title: "Leather Notebook",
+		price: 2499,
+		image: { src: "/images/products/notebook.jpg", alt: "Leather Notebook" },
+		category: "Stationery",
+	},
+	{
+		id: "prod-4",
+		slug: "water-bottle",
+		title: "Stainless Water Bottle",
+		price: 3499,
+		image: { src: "/images/products/bottle.jpg", alt: "Stainless Water Bottle" },
+		category: "Outdoors",
+	},
+];
+
+// Cart state
+const [cartItems, setCartItems] = useState<Array<{ id: string; slug: string; title: string; price: number; quantity: number }>>([]);
+const [cartOpen, setCartOpen] = useState(false);
+
+const addToCart = (product: any) => {
+	setCartItems((prev) => {
+		const existing = prev.find((item) => item.slug === product.slug);
+		if (existing) {
+			return prev.map((item) =>
+				item.slug === product.slug ? { ...item, quantity: item.quantity + 1 } : item
+			);
+		}
+		return [...prev, { id: product.id, slug: product.slug, title: product.title, price: product.price, quantity: 1 }];
+	});
+	setCartOpen(true);
+};
+
+const updateQuantity = (slug: string, quantity: number) => {
+	setCartItems((prev) =>
+		prev.map((item) => (item.slug === slug ? { ...item, quantity } : item))
+	);
+};
+
+const removeFromCart = (slug: string) => {
+	setCartItems((prev) => prev.filter((item) => item.slug !== slug));
+};
+---
+
+<Base title="E-commerce Demo Shop - Browse Products" cartCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}>
+	<section class="hero">
+		<h1>Discover Our Products</h1>
+		<p class="hero__lead">
+			Quality items for everyday life. Free shipping on orders over $50.
+		</p>
+	</section>
+
+	<section class="products-section">
+		<h2>Featured Products</h2>
+		<div class="product-grid">
+			{mockProducts.map((product) => (
+				<ProductCard product={product} />
+			))}
+		</div>
+	</section>
+
+	<CartSidebar
+		isOpen={cartOpen}
+		cartItems={cartItems}
+		onClose={() => setCartOpen(false)}
+		onUpdateQuantity={updateQuantity}
+		onRemove={removeFromCart}
+	/>
+</Base>
+
+<style>
+	.hero {
+		text-align: center;
+		padding: 3rem 0;
+		border-bottom: 1px solid var(--color-border);
+		margin-bottom: 2rem;
+	}
+
+	.hero h1 {
+		font-size: 2.5rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+		color: var(--color-text);
+	}
+
+	.hero__lead {
+		font-size: 1.25rem;
+		color: var(--color-text-secondary);
+		max-width: 600px;
+		margin: 0 auto;
+		line-height: 1.6;
+	}
+
+	.products-section {
+		margin-top: 2rem;
+	}
+
+	.products-section h2 {
+		font-size: 1.75rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.product-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 2rem;
+	}
+</style>

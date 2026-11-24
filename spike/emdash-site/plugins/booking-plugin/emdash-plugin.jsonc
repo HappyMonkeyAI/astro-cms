@@ -1,0 +1,66 @@
+{
+	"name": "booking-plugin",
+	"description": "Booking and appointment scheduling module for EmDash",
+	"version": "0.1.0",
+	"capabilities": [
+		"email:send",
+		"hooks.content-policy:register",
+		"network:request:unrestricted",
+		"users:read"
+	],
+	"routes": {
+		"availability": {
+			"method": "POST",
+			"path": "/_emdash/api/plugins/booking/availability",
+			"public": true,
+			"body": "json"
+		},
+		"bookings": {
+			"method": "POST",
+			"path": "/_emdash/api/plugins/booking/bookings",
+			"public": true,
+			"body": "json"
+		},
+		"bookings-list": {
+			"method": "GET",
+			"path": "/_emdash/api/plugins/booking/bookings",
+			"permission": "admin:manage"
+		},
+		"booking-update": {
+			"method": "PATCH",
+			"path": "/_emdash/api/plugins/booking/bookings/{id}",
+			"permission": "admin:manage"
+		},
+		"payment-checkout": {
+			"method": "POST",
+			"path": "/_emdash/api/plugins/booking/payment/checkout-session",
+			"public": true,
+			"body": "json"
+		},
+		"payment-webhook": {
+			"method": "POST",
+			"path": "/_emdash/api/plugins/booking/payment/webhook",
+			"public": true,
+			"body": "json"
+		},
+		"admin": {
+			"method": "POST",
+			"path": "/_emdash/api/plugins/booking/admin",
+			"permission": "admin:manage"
+		}
+	},
+	"mcp": {
+		"tools": {
+			"bookings_list": {
+				"description": "List bookings with filters for the admin dashboard",
+				"route": "bookings-list",
+				"destructive": false
+			},
+			"booking_update": {
+				"description": "Update booking status (confirmed, cancelled, completed)",
+				"route": "booking-update",
+				"destructive": false
+			}
+		}
+	}
+}

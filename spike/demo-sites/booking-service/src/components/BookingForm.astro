@@ -1,0 +1,367 @@
+---
+import { useState } from "react";
+
+export interface Service {
+	slug: string;
+	name: string;
+	duration: number;
+}
+
+export interface Props {
+	services?: Service[];
+}
+
+const { services = [
+	{ slug: "consultation", name: "Initial Consultation", duration: 30 },
+	{ slug: "strategy-session", name: "Strategy Session", duration: 60 },
+	{ slug: "follow-up", name: "Follow-up Meeting", duration: 30 },
+] as Service[] } = Astro.props;
+
+// State for the booking form
+const [selectedService, setSelectedService] = useState<Service | null>(null);
+const [bookingDate, setBookingDate] = useState("");
+const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+const [selectedSlot, setSelectedSlot] = useState("");
+const [customerName, setCustomerName] = useState("");
+const [customerEmail, setCustomerEmail] = useState("");
+const [customerPhone, setCustomerPhone] = useState("");
+const [notes, setNotes] = useState("");
+const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+const [errorMessage, setErrorMessage] = useState("");
+
+// Fetch available slots when date or service changes
+const fetchAvailableSlots = async () => {
+	if (!selectedService || !bookingDate) return;
+
+	setStatus("loading");
+	setAvailableSlots([]);
+
+	try {
+		const response = await fetch("/_emdash/api/plugins/booking/availability", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				serviceSlug: selectedService.slug,
+				date: bookingDate,
+			}),
+		});
+
+		const result = await response.json();
+		if (result.ok) {
+			setAvailableSlots(result.availableSlots || []);
+		} else {
+			setErrorMessage(result.error || "Failed to fetch available slots.");
+			setStatus("error");
+		}
+	} catch (error) {
+		setErrorMessage("Network error. Please try again.");
+		setStatus("error");
+	}
+};
+
+// Handle form submission
+const handleSubmit = async (e: Event) => {
+	e.preventDefault();
+
+	if (!selectedService || !bookingDate || !selectedSlot || !customerName || !customerEmail) {
+		setErrorMessage("Please fill in all required fields.");
+		setStatus("error");
+		return;
+	}
+
+	setStatus("loading");
+
+	try {
+		const response = await fetch("/_emdash/api/plugins/booking/bookings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				serviceSlug: selectedService.slug,
+				bookingDate,
+				bookingTimeSlot: selectedSlot,
+				customerName,
+				customerEmail,
+				customerPhone: customerPhone || undefined,
+				notes: notes || undefined,
+				honeypot: "", // Honeypot field
+			}),
+		});
+
+		const result = await response.json();
+		if (result.ok) {
+			setStatus("success");
+			// Reset form
+			setSelectedService(null);
+			setBookingDate("");
+			setAvailableSlots([]);
+			setSelectedSlot("");
+			setCustomerName("");
+			setCustomerEmail("");
+			setCustomerPhone("");
+			setNotes("");
+		} else {
+			setErrorMessage(result.error || "Failed to submit booking.");
+			setStatus("error");
+		}
+	} catch (error) {
+		setErrorMessage("Network error. Please try again.");
+		setStatus("error");
+	}
+};
+
+// Date change handler
+const handleDateChange = (e: Event) => {
+	const newDate = (e.target as HTMLInputElement).value;
+	setBookingDate(newDate);
+	setAvailableSlots([]);
+	setSelectedSlot("");
+
+	// Fetch slots after a short delay
+	setTimeout(fetchAvailableSlots, 300);
+};
+---
+
+<section id="book" class="booking-form">
+	<h2>Book a Service</h2>
+
+	{status === "success" && (
+		<div class="booking-form__success">
+			<p>Booking submitted successfully! We will send a confirmation email shortly.</p>
+		</div>
+	)}
+
+	{status === "error" && (
+		<div class="booking-form__error">
+			<p>{errorMessage}</p>
+		</div>
+	)}
+
+	<form onSubmit={handleSubmit} class="booking-form__fields">
+		<div class="booking-form__group">
+			<label for="service">Select a Service *</label>
+			<select
+				id="service"
+				value={selectedService?.slug || ""}
+				onChange={(e) => {
+					const slug = (e.target as HTMLSelectElement).value;
+					const service = services.find((s) => s.slug === slug);
+					setSelectedService(service || null);
+					setBookingDate("");
+					setAvailableSlots([]);
+					setSelectedSlot("");
+				}}
+				required
+			>
+				<option value="">Choose a service...</option>
+				{services.map((service) => (
+					<option value={service.slug}>{service.name} ({service.duration} min)</option>
+				))}
+			</select>
+		</div>
+
+		{selectedService && (
+			<>
+				<div class="booking-form__group">
+					<label for="date">Select a Date *</label>
+					<input
+						type="date"
+						id="date"
+						value={bookingDate}
+						onChange={handleDateChange}
+						min={new Date().toISOString().split("T")[0]}
+						required
+					/>
+				</div>
+
+				{bookingDate && availableSlots.length > 0 && (
+					<div class="booking-form__group">
+						<label>Select a Time Slot *</label>
+						<div class="booking-form__slots">
+							{availableSlots.map((slot) => (
+								<button
+									type="button"
+									class={`booking-form__slot ${selectedSlot === slot ? "booking-form__slot--selected" : ""}`}
+									onClick={() => setSelectedSlot(slot)}
+								>
+									{slot}
+								</button>
+							))}
+						</div>
+					</div>
+				)}
+
+				{bookingDate && availableSlots.length === 0 && (
+					<div class="booking-form__group">
+						<p class="booking-form__no-slots">No available slots for this date. Please choose another date.</p>
+					</div>
+				)}
+
+				<div class="booking-form__group">
+					<label for="name">Your Name *</label>
+					<input
+						type="text"
+						id="name"
+						value={customerName}
+						onChange={(e) => setCustomerName((e.target as HTMLInputElement).value)}
+						required
+					/>
+				</div>
+
+				<div class="booking-form__group">
+					<label for="email">Email Address *</label>
+					<input
+						type="email"
+						id="email"
+						value={customerEmail}
+						onChange={(e) => setCustomerEmail((e.target as HTMLInputElement).value)}
+						required
+					/>
+				</div>
+
+				<div class="booking-form__group">
+					<label for="phone">Phone Number (Optional)</label>
+					<input
+						type="tel"
+						id="phone"
+						value={customerPhone}
+						onChange={(e) => setCustomerPhone((e.target as HTMLInputElement).value)}
+					/>
+				</div>
+
+				<div class="booking-form__group">
+					<label for="notes">Special Requests or Notes (Optional)</label>
+					<textarea
+						id="notes"
+						rows={4}
+						value={notes}
+						onChange={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
+					></textarea>
+				</div>
+
+				<div class="booking-form__actions">
+					<button type="submit" class="booking-form__submit" disabled={status === "loading"}>
+						{status === "loading" ? "Submitting..." : "Book Appointment"}
+					</button>
+				</div>
+			</>
+		)}
+	</form>
+</section>
+
+<style>
+	.booking-form {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: 2rem;
+		margin-top: 2rem;
+	}
+
+	.booking-form h2 {
+		margin-top: 0;
+		margin-bottom: 1.5rem;
+		font-size: 1.5rem;
+	}
+
+	.booking-form__group {
+		margin-bottom: 1.5rem;
+	}
+
+	.booking-form__group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.booking-form__group input,
+	.booking-form__group select,
+	.booking-form__group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		font-size: 1rem;
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	.booking-form__group input:focus,
+	.booking-form__group select:focus,
+	.booking-form__group textarea:focus {
+		outline: none;
+		border-color: var(--color-brand);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.booking-form__slots {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+		gap: 0.5rem;
+	}
+
+	.booking-form__slot {
+		padding: 0.5rem 1rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+		cursor: pointer;
+		font-size: 0.875rem;
+	}
+
+	.booking-form__slot:hover {
+		border-color: var(--color-brand);
+	}
+
+	.booking-form__slot--selected {
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		border-color: var(--color-brand);
+	}
+
+	.booking-form__no-slots {
+		color: var(--color-text-secondary);
+		font-style: italic;
+	}
+
+	.booking-form__actions {
+		margin-top: 2rem;
+	}
+
+	.booking-form__submit {
+		padding: 0.75rem 2rem;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		border: none;
+		border-radius: var(--radius);
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.booking-form__submit:hover:not(:disabled) {
+		background: var(--color-brand-hover);
+	}
+
+	.booking-form__submit:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.booking-form__success {
+		background: #dcfce7;
+		color: #166534;
+		padding: 1rem;
+		border-radius: var(--radius);
+		margin-bottom: 1.5rem;
+	}
+
+	.booking-form__error {
+		background: #fee2e2;
+		color: #991b1b;
+		padding: 1rem;
+		border-radius: var(--radius);
+		margin-bottom: 1.5rem;
+	}
+</style>

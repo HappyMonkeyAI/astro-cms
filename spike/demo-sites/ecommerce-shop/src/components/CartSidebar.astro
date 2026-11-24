@@ -1,0 +1,229 @@
+---
+import { useState } from "react";
+
+export interface CartItem {
+	id: string;
+	slug: string;
+	title: string;
+	price: number;
+	quantity: number;
+}
+
+export interface Props {
+	isOpen: boolean;
+	cartItems: CartItem[];
+	onClose: () => void;
+	onUpdateQuantity: (slug: string, quantity: number) => void;
+	onRemove: (slug: string) => void;
+}
+
+const { isOpen, cartItems, onClose, onUpdateQuantity, onRemove } = Astro.props;
+
+const formatPrice = (price: number) => {
+	return `$${(price / 100).toFixed(2)}`;
+};
+
+const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+---
+
+{isOpen && (
+	<div class="cart-sidebar__overlay" onClick={onClose}></div>
+)}
+
+<aside class={`cart-sidebar ${isOpen ? "cart-sidebar--open" : ""}`}>
+	<div class="cart-sidebar__header">
+		<h2>Shopping Cart</h2>
+		<button class="cart-sidebar__close" onClick={onClose}>âœ•</button>
+	</div>
+
+	<div class="cart-sidebar__items">
+		{cartItems.length === 0 ? (
+			<p class="cart-sidebar__empty">Your cart is empty.</p>
+		) : (
+			<ul class="cart-sidebar__list">
+				{cartItems.map((item) => (
+					<li class="cart-sidebar__item">
+						<div class="cart-sidebar__item-info">
+							<h3 class="cart-sidebar__item-title">{item.title}</h3>
+							<p class="cart-sidebar__item-price">{formatPrice(item.price)}</p>
+						</div>
+						<div class="cart-sidebar__item-controls">
+							<button class="cart-sidebar__qty-btn" onClick={() => onUpdateQuantity(item.slug, Math.max(1, item.quantity - 1))}>-</button>
+							<span class="cart-sidebar__qty">{item.quantity}</span>
+							<button class="cart-sidebar__qty-btn" onClick={() => onUpdateQuantity(item.slug, item.quantity + 1)}>+</button>
+						</div>
+						<button class="cart-sidebar__remove" onClick={() => onRemove(item.slug)}>Remove</button>
+					</li>
+				))}
+			</ul>
+		)}
+	</div>
+
+	{cartItems.length > 0 && (
+		<div class="cart-sidebar__footer">
+			<div class="cart-sidebar__total">
+				<span>Total:</span>
+				<span class="cart-sidebar__total-amount">{formatPrice(total)}</span>
+			</div>
+			<button class="cart-sidebar__checkout">Proceed to Checkout</button>
+		</div>
+	)}
+</aside>
+
+<style>
+	.cart-sidebar__overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: 200;
+	}
+
+	.cart-sidebar {
+		position: fixed;
+		top: 0;
+		right: -400px;
+		width: 400px;
+		height: 100vh;
+		background: var(--color-surface);
+		border-left: 1px solid var(--color-border);
+		z-index: 300;
+		display: flex;
+		flex-direction: column;
+		transition: right 0.3s ease;
+	}
+
+	.cart-sidebar--open {
+		right: 0;
+	}
+
+	.cart-sidebar__header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.cart-sidebar__header h2 {
+		margin: 0;
+		font-size: 1.25rem;
+	}
+
+	.cart-sidebar__close {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		cursor: pointer;
+		color: var(--color-text-secondary);
+	}
+
+	.cart-sidebar__items {
+		flex: 1;
+		overflow-y: auto;
+		padding: 1rem;
+	}
+
+	.cart-sidebar__empty {
+		color: var(--color-text-secondary);
+		text-align: center;
+		margin-top: 2rem;
+	}
+
+	.cart-sidebar__list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.cart-sidebar__item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 1rem 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.cart-sidebar__item-info {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+	}
+
+	.cart-sidebar__item-title {
+		margin: 0;
+		font-size: 0.875rem;
+		font-weight: 600;
+	}
+
+	.cart-sidebar__item-price {
+		margin: 0;
+		color: var(--color-brand);
+		font-weight: 600;
+	}
+
+	.cart-sidebar__item-controls {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.cart-sidebar__qty-btn {
+		width: 28px;
+		height: 28px;
+		border: 1px solid var(--color-border);
+		background: var(--color-bg);
+		cursor: pointer;
+		border-radius: var(--radius);
+	}
+
+	.cart-sidebar__qty {
+		min-width: 28px;
+		text-align: center;
+		font-size: 0.875rem;
+	}
+
+	.cart-sidebar__remove {
+		background: none;
+		border: none;
+		color: #ef4444;
+		font-size: 0.75rem;
+		cursor: pointer;
+		text-decoration: underline;
+	}
+
+	.cart-sidebar__footer {
+		padding: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.cart-sidebar__total {
+		display: flex;
+		justify-content: space-between;
+		font-size: 1.125rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+	}
+
+	.cart-sidebar__total-amount {
+		color: var(--color-brand);
+	}
+
+	.cart-sidebar__checkout {
+		width: 100%;
+		padding: 0.75rem;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		border: none;
+		border-radius: var(--radius);
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.cart-sidebar__checkout:hover {
+		background: var(--color-brand-hover);
+	}
+</style>

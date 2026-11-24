@@ -1,0 +1,81 @@
+{
+	"siteSettings": {
+		"title": "Booking Service Demo",
+		"tagline": "Book appointments and services online"
+	},
+	"collections": [
+		{
+			"name": "services",
+			"label": "Services",
+			"fields": [
+				{
+					"name": "title",
+					"label": "Title",
+					"type": "text",
+					"required": true
+				},
+				{
+					"name": "slug",
+					"label": "Slug",
+					"type": "text",
+					"required": true
+				},
+				{
+					"name": "description",
+					"label": "Description",
+					"type": "text"
+				},
+				{
+					"name": "duration",
+					"label": "Duration (minutes)",
+					"type": "number",
+					"required": true
+				},
+				{
+					"name": "price",
+					"label": "Price",
+					"type": "number"
+				}
+			],
+			"urlPattern": "/services/[slug]",
+			"supports": {
+				"translations": false
+			}
+		}
+	],
+	"entries": [
+		{
+			"collection": "services",
+			"id": "consultation",
+			"data": {
+				"title": "Initial Consultation",
+				"slug": "consultation",
+				"description": "First-time consultation to discuss your needs and goals.",
+				"duration": 30,
+				"price": 50
+			}
+		},
+		{
+			"collection": "services",
+			"id": "strategy-session",
+			"data": {
+				"title": "Strategy Session",
+				"slug": "strategy-session",
+				"description": "In-depth strategy planning session.",
+				"duration": 60,
+				"price": 100
+			}
+		},
+		{
+			"collection": "services",
+			"id": "follow-up",
+			"data": {
+				"title": "Follow-up Meeting",
+				"slug": "follow-up",
+				"description": "Follow-up meeting to review progress and next steps.",
+				"duration": 30,
+				"price": 50
+			}
+		}
+	]
+}

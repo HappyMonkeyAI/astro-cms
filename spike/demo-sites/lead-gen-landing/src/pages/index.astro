@@ -1,0 +1,101 @@
+---
+import Base from "../layouts/Base.astro";
+import MultiStepForm from "../components/MultiStepForm.astro";
+
+export const prerender = false;
+---
+
+<Base title="Lead Generation Demo - Get a Free Consultation">
+	<section class="hero">
+		<h1>Transform Your Business with Expert Solutions</h1>
+		<p class="hero__lead">
+			Get a free consultation and customized proposal for your project. Fill out the form below and our team will reach out within 24 hours.
+		</p>
+	</section>
+
+	<section class="benefits">
+		<div class="benefits__grid">
+			<div class="benefit-card">
+				<h3>Expert Team</h3>
+				<p>Work with experienced professionals who deliver results.</p>
+			</div>
+			<div class="benefit-card">
+				<h3>Custom Solutions</h3>
+				<p>Tailored strategies that fit your unique business needs.</p>
+			</div>
+			<div class="benefit-card">
+				<h3>Proven Results</h3>
+				<p>Trackable outcomes and measurable ROI for your investments.</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="lead-form-section">
+		<h2>Request Your Free Consultation</h2>
+		<MultiStepForm />
+	</section>
+</Base>
+
+<style>
+	.hero {
+		text-align: center;
+		padding: 4rem 0;
+		border-bottom: 1px solid var(--color-border);
+		margin-bottom: 3rem;
+		background: var(--color-fill);
+	}
+
+	.hero h1 {
+		font-size: 3rem;
+		font-weight: 700;
+		margin-bottom: 1.5rem;
+		color: var(--color-text);
+	}
+
+	.hero__lead {
+		font-size: 1.25rem;
+		color: var(--color-text-secondary);
+		max-width: 700px;
+		margin: 0 auto;
+		line-height: 1.6;
+	}
+
+	.benefits {
+		margin-bottom: 3rem;
+	}
+
+	.benefits__grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 2rem;
+	}
+
+	.benefit-card {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: 2rem;
+		text-align: center;
+	}
+
+	.benefit-card h3 {
+		font-size: 1.25rem;
+		margin-bottom: 1rem;
+		color: var(--color-text);
+	}
+
+	.benefit-card p {
+		color: var(--color-text-secondary);
+		line-height: 1.6;
+	}
+
+	.lead-form-section {
+		margin-top: 3rem;
+	}
+
+	.lead-form-section h2 {
+		text-align: center;
+		font-size: 2rem;
+		margin-bottom: 2rem;
+	}
+</style>

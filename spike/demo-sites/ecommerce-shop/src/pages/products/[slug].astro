@@ -1,0 +1,189 @@
+---
+import Base from "../../layouts/Base.astro";
+import CartSidebar from "../../components/CartSidebar.astro";
+import { useState } from "react";
+import { Image } from "emdash/ui";
+
+export const prerender = false;
+
+export async function getStaticPaths() {
+	const products = [
+		{ slug: "wireless-headphones", title: "Wireless Headphones", price: 7999, category: "Electronics", description: "High-quality wireless headphones with noise cancellation and 30-hour battery life." },
+		{ slug: "coffee-mug", title: "Ceramic Coffee Mug", price: 1499, category: "Home", description: "Classic ceramic coffee mug, 12oz capacity, microwave and dishwasher safe." },
+		{ slug: "notebook", title: "Leather Notebook", price: 2499, category: "Stationery", description: "Premium leather notebook with lined pages, perfect for journaling or notes." },
+		{ slug: "water-bottle", title: "Stainless Water Bottle", price: 3499, category: "Outdoors", description: "Insulated stainless steel water bottle, keeps drinks cold for 24 hours or hot for 12 hours." },
+	];
+
+	return products.map((product) => ({
+		params: { slug: product.slug },
+		props: product,
+	}));
+}
+
+const { slug, title, price, category, description } = Astro.props;
+
+const formatPrice = (price: number) => {
+	return `$${(price / 100).toFixed(2)}`;
+};
+
+// Cart state
+const [cartItems, setCartItems] = useState<Array<{ id: string; slug: string; title: string; price: number; quantity: number }>>([]);
+const [cartOpen, setCartOpen] = useState(false);
+
+const addToCart = () => {
+	setCartItems((prev) => {
+		const existing = prev.find((item) => item.slug === slug);
+		if (existing) {
+			return prev.map((item) =>
+				item.slug === slug ? { ...item, quantity: item.quantity + 1 } : item
+			);
+		}
+		return [...prev, { id: slug, slug, title, price, quantity: 1 }];
+	});
+	setCartOpen(true);
+};
+
+const updateQuantity = (itemSlug: string, quantity: number) => {
+	setCartItems((prev) =>
+		prev.map((item) => (item.slug === itemSlug ? { ...item, quantity } : item))
+	);
+};
+
+const removeFromCart = (itemSlug: string) => {
+	setCartItems((prev) => prev.filter((item) => item.slug !== itemSlug));
+};
+
+// Mock product image
+const productImage = {
+	src: `/images/products/${slug}.jpg`,
+	alt: title,
+};
+---
+
+<Base title={`${title} - E-commerce Demo Shop`} cartCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}>
+	<section class="product-detail">
+		<div class="product-detail__grid">
+			<div class="product-detail__image">
+				<Image image={productImage} alt={productImage.alt} />
+			</div>
+			<div class="product-detail__info">
+				<span class="product-detail__category">{category}</span>
+				<h1 class="product-detail__title">{title}</h1>
+				<p class="product-detail__price">{formatPrice(price)}</p>
+				<p class="product-detail__description">{description}</p>
+
+				<div class="product-detail__actions">
+					<button class="product-detail__add-to-cart" onClick={addToCart}>
+						Add to Cart
+					</button>
+					<button class="product-detail__buy-now" onClick={() => alert("Checkout integration coming soon!")}>
+						Buy Now
+					</button>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<CartSidebar
+		isOpen={cartOpen}
+		cartItems={cartItems}
+		onClose={() => setCartOpen(false)}
+		onUpdateQuantity={updateQuantity}
+		onRemove={removeFromCart}
+	/>
+</Base>
+
+<style>
+	.product-detail {
+		margin-top: 2rem;
+	}
+
+	.product-detail__grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 3rem;
+		align-items: start;
+	}
+
+	@media (max-width: 768px) {
+		.product-detail__grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.product-detail__image {
+		background: var(--color-fill);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		aspect-ratio: 16/9;
+	}
+
+	.product-detail__image img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.product-detail__category {
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.product-detail__title {
+		font-size: 2rem;
+		font-weight: 700;
+		margin: 0.5rem 0;
+		color: var(--color-text);
+	}
+
+	.product-detail__price {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--color-brand);
+		margin: 0 0 1.5rem 0;
+	}
+
+	.product-detail__description {
+		color: var(--color-text-secondary);
+		line-height: 1.6;
+		margin-bottom: 2rem;
+	}
+
+	.product-detail__actions {
+		display: flex;
+		gap: 1rem;
+	}
+
+	.product-detail__add-to-cart,
+	.product-detail__buy-now {
+		flex: 1;
+		padding: 0.75rem 1.5rem;
+		border: none;
+		border-radius: var(--radius);
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.product-detail__add-to-cart {
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+	}
+
+	.product-detail__add-to-cart:hover {
+		background: var(--color-brand-hover);
+	}
+
+	.product-detail__buy-now {
+		background: var(--color-surface);
+		color: var(--color-text);
+		border: 1px solid var(--color-border);
+	}
+
+	.product-detail__buy-now:hover {
+		background: var(--color-fill);
+	}
+</style>
