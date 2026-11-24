@@ -1,0 +1,102 @@
+---
+export interface MenuItem {
+	id: string;
+	name: string;
+	description: string;
+	price: number;
+	category: string;
+	dietaryTags?: string[];
+}
+
+export interface Props {
+	item: MenuItem;
+}
+
+const { item } = Astro.props;
+
+const formatPrice = (price: number) => {
+	return `$${price.toFixed(2)}`;
+};
+
+const dietaryTagColors: Record<string, string> = {
+	'vegan': '#22c55e',
+	'vegetarian': '#84cc16',
+	'gluten-free': '#3b82f6',
+	'dairy-free': '#f59e0b',
+	'spicy': '#ef4444',
+};
+---
+
+<article class="menu-item">
+	<div class="menu-item__header">
+		<div class="menu-item__title-price">
+			<h3 class="menu-item__name">{item.name}</h3>
+			<p class="menu-item__price">{formatPrice(item.price)}</p>
+		</div>
+	</div>
+	<p class="menu-item__description">{item.description}</p>
+	{item.dietaryTags && item.dietaryTags.length > 0 && (
+		<div class="menu-item__tags">
+			{item.dietaryTags.map((tag) => (
+				<span class="menu-item__tag" style={{ backgroundColor: dietaryTagColors[tag] || '#6b7280', color: 'white' }}>
+					{tag}
+				</span>
+			))}
+		</div>
+	)}
+</article>
+
+<style>
+	.menu-item {
+		padding: 1.5rem 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.menu-item__header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 0.5rem;
+	}
+
+	.menu-item__title-price {
+		flex: 1;
+	}
+
+	.menu-item__name {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin: 0 0 0.25rem 0;
+		color: var(--color-text);
+	}
+
+	.menu-item__price {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-brand);
+		margin: 0;
+	}
+
+	.menu-item__description {
+		color: var(--color-text-secondary);
+		font-size: 0.875rem;
+		line-height: 1.5;
+		margin: 0.5rem 0;
+	}
+
+	.menu-item__tags {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		margin-top: 0.5rem;
+	}
+
+	.menu-item__tag {
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 9999px;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+</style>

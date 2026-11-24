@@ -1,0 +1,272 @@
+---
+import { useState } from "react";
+
+export interface Props {
+	onSubmit?: (data: any) => void;
+}
+
+const { onSubmit } = Astro.props;
+
+const [formData, setFormData] = useState({
+	date: "",
+	time: "",
+	guests: "2",
+	name: "",
+	email: "",
+	phone: "",
+	notes: "",
+});
+
+const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+const [errorMessage, setErrorMessage] = useState("");
+
+const handleChange = (field: string, value: string) => {
+	setFormData((prev) => ({ ...prev, [field]: value }));
+};
+
+const handleSubmit = async (e: Event) => {
+	e.preventDefault();
+
+	if (!formData.date || !formData.time || !formData.name || !formData.email) {
+		setErrorMessage("Please fill in all required fields.");
+		return;
+	}
+
+	setStatus("submitting");
+
+	try {
+		// TODO: Integrate with booking module API
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+
+		if (onSubmit) {
+			onSubmit(formData);
+		}
+
+		setStatus("success");
+	} catch (error) {
+		setErrorMessage("Failed to submit reservation. Please try again.");
+		setStatus("error");
+	}
+};
+
+// Generate time slots for restaurant reservations (e.g., 17:00 to 22:00, 30-min intervals)
+const timeSlots = [
+	"17:00", "17:30", "18:00", "17:30", "18:00", "18:30", "19:00", "19:30",
+	"20:00", "20:30", "21:00", "21:30", "22:00",
+];
+
+const minDate = new Date().toISOString().split("T")[0];
+---
+
+<section id="reservations" class="reservation-form">
+	<h2>Make a Reservation</h2>
+
+	{status === "success" && (
+		<div class="reservation-form__success">
+			<p>Reservation requested successfully! We will send a confirmation email shortly.</p>
+			<button class="reservation-form__reset" onClick={() => { setFormData({ date: "", time: "", guests: "2", name: "", email: "", phone: "", notes: "" }); setStatus("idle"); }}>
+				Make Another Reservation
+			</button>
+		</div>
+	)}
+
+	{status === "error" && (
+		<div class="reservation-form__error">
+			<p>{errorMessage}</p>
+		</div>
+	)}
+
+	{status === "idle" && (
+		<form onSubmit={handleSubmit} class="reservation-form__fields">
+			<div class="reservation-form__group">
+				<label for="date">Date *</label>
+				<input
+					type="date"
+					id="date"
+					value={formData.date}
+					onChange={(e) => handleChange("date", (e.target as HTMLInputElement).value)}
+					min={minDate}
+					required
+				/>
+			</div>
+
+			<div class="reservation-form__group">
+				<label for="time">Time *</label>
+				<select
+					id="time"
+					value={formData.time}
+					onChange={(e) => handleChange("time", (e.target as HTMLSelectElement).value)}
+					required
+				>
+					<option value="">Select a time...</option>
+					{timeSlots.map((slot) => (
+						<option value={slot}>{slot}</option>
+					))}
+				</select>
+			</div>
+
+			<div class="reservation-form__group">
+				<label for="guests">Number of Guests</label>
+				<select
+					id="guests"
+					value={formData.guests}
+					onChange={(e) => handleChange("guests", (e.target as HTMLSelectElement).value)}
+				>
+					<option value="1">1 Guest</option>
+					<option value="2">2 Guests</option>
+					<option value="3">3 Guests</option>
+					<option value="4">4 Guests</option>
+					<option value="5">5 Guests</option>
+					<option value="6">6+ Guests</option>
+				</select>
+			</div>
+
+			<div class="reservation-form__group">
+				<label for="name">Your Name *</label>
+				<input
+					type="text"
+					id="name"
+					value={formData.name}
+					onChange={(e) => handleChange("name", (e.target as HTMLInputElement).value)}
+					required
+				/>
+			</div>
+
+			<div class="reservation-form__group">
+				<label for="email">Email Address *</label>
+				<input
+					type="email"
+					id="email"
+					value={formData.email}
+					onChange={(e) => handleChange("email", (e.target as HTMLInputElement).value)}
+					required
+				/>
+			</div>
+
+			<div class="reservation-form__group">
+				<label for="phone">Phone Number</label>
+				<input
+					type="tel"
+					id="phone"
+					value={formData.phone}
+					onChange={(e) => handleChange("phone", (e.target as HTMLInputElement).value)}
+				/>
+			</div>
+
+			<div class="reservation-form__group">
+				<label for="notes">Special Requests or Dietary Requirements</label>
+				<textarea
+					id="notes"
+					rows={3}
+					value={formData.notes}
+					onChange={(e) => handleChange("notes", (e.target as HTMLTextAreaElement).value)}
+				></textarea>
+			</div>
+
+			<button type="submit" class="reservation-form__submit" disabled={status === "submitting"}>
+				{status === "submitting" ? "Submitting..." : "Request Reservation"}
+			</button>
+		</form>
+	)}
+</section>
+
+<style>
+	.reservation-form {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: 2rem;
+		margin-top: 2rem;
+	}
+
+	.reservation-form h2 {
+		margin-top: 0;
+		margin-bottom: 1.5rem;
+		font-size: 1.5rem;
+	}
+
+	.reservation-form__fields {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.reservation-form__group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.reservation-form__group label {
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.reservation-form__group input,
+	.reservation-form__group select,
+	.reservation-form__group textarea {
+		padding: 0.75rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		font-size: 1rem;
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	.reservation-form__group input:focus,
+	.reservation-form__group select:focus,
+	.reservation-form__group textarea:focus {
+		outline: none;
+		border-color: var(--color-brand);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.reservation-form__submit {
+		grid-column: 1 / -1;
+		padding: 0.75rem 2rem;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		border: none;
+		border-radius: var(--radius);
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		margin-top: 1rem;
+	}
+
+	.reservation-form__submit:hover:not(:disabled) {
+		background: var(--color-brand-hover);
+	}
+
+	.reservation-form__submit:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.reservation-form__success,
+	.reservation-form__error {
+		padding: 1rem;
+		border-radius: var(--radius);
+		margin-bottom: 1.5rem;
+	}
+
+	.reservation-form__success {
+		background: #dcfce7;
+		color: #166534;
+	}
+
+	.reservation-form__error {
+		background: #fee2e2;
+		color: #991b1b;
+	}
+
+	.reservation-form__reset {
+		margin-top: 1rem;
+		padding: 0.5rem 1rem;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		border: none;
+		border-radius: var(--radius);
+		cursor: pointer;
+	}
+</style>
