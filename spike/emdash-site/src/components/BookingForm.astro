@@ -1,0 +1,377 @@
+---
+interface Props {
+	services?: readonly string[];
+	slots?: readonly string[];
+}
+
+const {
+	services = ["consultation", "development", "design"],
+	slots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00"],
+} = Astro.props;
+
+const todayIso = new Date().toISOString().slice(0, 10);
+---
+
+<div class="booking-shell" data-booking-root>
+	<form class="booking-form" data-booking-form>
+		<div class="booking-form__row">
+			<label for="booking-service">Service</label>
+			<select id="booking-service" name="service" required data-booking-service>
+				{services.map((service) => (
+					<option value={service}>{service}</option>
+				))}
+			</select>
+		</div>
+
+		<div class="booking-form__grid">
+			<div class="booking-form__row">
+				<label for="booking-date">Date</label>
+				<input
+					id="booking-date"
+					name="date"
+					type="date"
+					min={todayIso}
+					value={todayIso}
+					required
+					data-booking-date
+				/>
+			</div>
+
+			<div class="booking-form__row">
+				<label for="booking-time">Time slot</label>
+				<select id="booking-time" name="time" required data-booking-time>
+					{slots.map((slot) => (
+						<option value={slot} data-base-label={slot}>{slot}</option>
+					))}
+				</select>
+			</div>
+		</div>
+
+		<p class="booking-form__hint" data-availability-hint>
+			Checking slot availability...
+		</p>
+
+		<div class="booking-form__grid">
+			<div class="booking-form__row">
+				<label for="booking-name">Your name</label>
+				<input
+					id="booking-name"
+					name="customerName"
+					type="text"
+					autocomplete="name"
+					maxlength="120"
+					required
+				/>
+			</div>
+
+			<div class="booking-form__row">
+				<label for="booking-email">Email address</label>
+				<input
+					id="booking-email"
+					name="customerEmail"
+					type="email"
+					autocomplete="email"
+					maxlength="254"
+					required
+				/>
+			</div>
+		</div>
+
+		<div class="booking-form__row">
+			<label for="booking-notes">Notes (optional)</label>
+			<textarea
+				id="booking-notes"
+				name="notes"
+				rows="3"
+				maxlength="1000"
+				placeholder="Share any context or goals for this appointment"
+			></textarea>
+		</div>
+
+		<div class="booking-form__hp" aria-hidden="true">
+			<label for="booking-website">Website</label>
+			<input
+				id="booking-website"
+				name="website"
+				type="text"
+				tabindex="-1"
+				autocomplete="off"
+				value=""
+			/>
+		</div>
+
+		<div class="booking-form__actions">
+			<button type="submit" data-booking-submit>Request booking</button>
+		</div>
+
+		<div
+			class="booking-form__feedback"
+			role="status"
+			aria-live="polite"
+			hidden
+			data-booking-feedback
+		></div>
+	</form>
+</div>
+
+<script>
+	const root = document.querySelector("[data-booking-root]");
+	if (root instanceof HTMLElement) {
+		const form = root.querySelector("[data-booking-form]");
+		const serviceEl = root.querySelector("[data-booking-service]");
+		const dateEl = root.querySelector("[data-booking-date]");
+		const timeEl = root.querySelector("[data-booking-time]");
+		const hintEl = root.querySelector("[data-availability-hint]");
+		const submitBtn = root.querySelector("[data-booking-submit]");
+		const feedbackEl = root.querySelector("[data-booking-feedback]");
+
+		const showFeedback = (kind: "success" | "error", text: string) => {
+			if (!(feedbackEl instanceof HTMLElement)) return;
+			feedbackEl.hidden = false;
+			feedbackEl.dataset.kind = kind;
+			feedbackEl.textContent = text;
+		};
+
+		const syncServices = (services: string[]) => {
+			if (!(serviceEl instanceof HTMLSelectElement) || services.length === 0) return;
+			const current = serviceEl.value;
+			const existingValues = Array.from(serviceEl.options).map((o) => o.value);
+			const changed =
+				existingValues.length !== services.length ||
+				existingValues.some((val, idx) => val !== services[idx]);
+			if (!changed) return;
+
+			serviceEl.replaceChildren();
+			for (const svc of services) {
+				const opt = document.createElement("option");
+				opt.value = svc;
+				opt.textContent = svc;
+				serviceEl.appendChild(opt);
+			}
+			if (services.includes(current)) {
+				serviceEl.value = current;
+			}
+		};
+
+		const refreshAvailability = async () => {
+			if (
+				!(dateEl instanceof HTMLInputElement) ||
+				!(serviceEl instanceof HTMLSelectElement) ||
+				!(timeEl instanceof HTMLSelectElement)
+			) {
+				return;
+			}
+
+			const date = dateEl.value.trim();
+			const service = serviceEl.value.trim();
+			if (!date) return;
+
+			if (hintEl instanceof HTMLElement) {
+				hintEl.textContent = "Checking slot availability...";
+			}
+
+			try {
+				const params = new URLSearchParams({ date });
+				if (service) params.set("service", service);
+				const response = await fetch(`/_emdash/api/plugins/bookings/availability?${params.toString()}`);
+				const payload = await response.json();
+
+				if (!response.ok || !payload?.ok) {
+					if (hintEl instanceof HTMLElement) {
+						hintEl.textContent = payload?.message || "Could not verify availability.";
+					}
+					return;
+				}
+
+				if (Array.isArray(payload.services)) {
+					syncServices(payload.services);
+				}
+
+				const booked = new Set<string>(Array.isArray(payload.bookedTimes) ? payload.bookedTimes : []);
+				let firstAvailable: string | null = null;
+				for (const option of Array.from(timeEl.options)) {
+					const base = option.dataset.baseLabel || option.value;
+					const isTaken = booked.has(option.value);
+					option.disabled = isTaken;
+					option.textContent = isTaken ? `${base} (Booked)` : base;
+					if (!isTaken && firstAvailable === null) {
+						firstAvailable = option.value;
+					}
+				}
+				if (booked.has(timeEl.value) && firstAvailable) {
+					timeEl.value = firstAvailable;
+				}
+
+				if (hintEl instanceof HTMLElement) {
+					hintEl.textContent =
+						firstAvailable === null
+							? "All listed slots on this date are booked. Try another date."
+							: `${booked.size} slot(s) currently reserved on ${date}.`;
+				}
+			} catch {
+				if (hintEl instanceof HTMLElement) {
+					hintEl.textContent = "Availability check unavailable offline; conflicts are still enforced on submit.";
+				}
+			}
+		};
+
+		if (dateEl instanceof HTMLInputElement) {
+			dateEl.addEventListener("change", () => {
+				void refreshAvailability();
+			});
+		}
+		if (serviceEl instanceof HTMLSelectElement) {
+			serviceEl.addEventListener("change", () => {
+				void refreshAvailability();
+			});
+		}
+
+		if (form instanceof HTMLFormElement) {
+			form.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				if (submitBtn instanceof HTMLButtonElement) {
+					submitBtn.disabled = true;
+				}
+
+				try {
+					const data = new FormData(form);
+					const body = {
+						service: String(data.get("service") ?? "").trim(),
+						date: String(data.get("date") ?? "").trim(),
+						time: String(data.get("time") ?? "").trim(),
+						customerName: String(data.get("customerName") ?? "").trim(),
+						customerEmail: String(data.get("customerEmail") ?? "").trim(),
+						notes: String(data.get("notes") ?? "").trim() || undefined,
+						website: String(data.get("website") ?? ""),
+					};
+
+					const response = await fetch("/_emdash/api/plugins/bookings/create", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(body),
+					});
+					const payload = await response.json();
+
+					if (!response.ok || !payload?.ok) {
+						showFeedback(
+							"error",
+							payload?.message || "Unable to submit your booking. Please try another slot.",
+						);
+						return;
+					}
+
+					const booking = payload.booking;
+					showFeedback(
+						"success",
+						`Booking request received (${booking.status}) for ${booking.service} on ${booking.date} at ${booking.time}. Reference: ${booking.id}`,
+					);
+					form.reset();
+					if (dateEl instanceof HTMLInputElement) {
+						dateEl.value = booking.date;
+					}
+					if (serviceEl instanceof HTMLSelectElement) {
+						serviceEl.value = booking.service;
+					}
+					await refreshAvailability();
+				} catch {
+					showFeedback("error", "Network error while creating booking. Please try again.");
+				} finally {
+					if (submitBtn instanceof HTMLButtonElement) {
+						submitBtn.disabled = false;
+					}
+				}
+			});
+		}
+
+		void refreshAvailability();
+	}
+</script>
+
+<style>
+	.booking-shell {
+		max-width: 42rem;
+	}
+
+	.booking-form {
+		display: grid;
+		gap: 1rem;
+		padding: 1.5rem;
+		border: 1px solid rgba(127, 127, 127, 0.25);
+		border-radius: 0.75rem;
+		background: var(--color-surface, #ffffff);
+	}
+
+	.booking-form__grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+		gap: 1rem;
+	}
+
+	.booking-form__row {
+		display: grid;
+		gap: 0.4rem;
+	}
+
+	.booking-form__row label {
+		font-weight: 600;
+		font-size: 0.9rem;
+	}
+
+	.booking-form__row input,
+	.booking-form__row select,
+	.booking-form__row textarea {
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid rgba(127, 127, 127, 0.35);
+		border-radius: 0.45rem;
+		font: inherit;
+		background: inherit;
+		color: inherit;
+	}
+
+	.booking-form__hint {
+		margin: 0;
+		font-size: 0.875rem;
+		opacity: 0.8;
+	}
+
+	.booking-form__hp {
+		position: absolute;
+		left: -9999px;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+	}
+
+	.booking-form__actions button {
+		padding: 0.7rem 1.25rem;
+		border: none;
+		border-radius: 0.45rem;
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+		background: var(--color-accent, #111827);
+		color: var(--color-on-accent, #ffffff);
+	}
+
+	.booking-form__actions button:disabled {
+		opacity: 0.6;
+		cursor: wait;
+	}
+
+	.booking-form__feedback {
+		padding: 0.85rem 1rem;
+		border-radius: 0.5rem;
+		font-size: 0.95rem;
+	}
+
+	.booking-form__feedback[data-kind="success"] {
+		background: rgba(22, 163, 74, 0.14);
+		color: #166534;
+	}
+
+	.booking-form__feedback[data-kind="error"] {
+		background: rgba(220, 38, 38, 0.14);
+		color: #991b1b;
+	}
+</style>

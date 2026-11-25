@@ -1,0 +1,20 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "bookings",
+	"publisher": "did:web:spike.example.com",
+
+	"license": "MIT",
+	"author": { "name": "astro-cms spike" },
+	"security": { "email": "security@example.com" },
+	"description": "Appointment bookings plugin with double-booking prevention, public booking routes, Admin Block Kit dashboard, and MCP tools",
+
+	"capabilities": [],
+	"allowedHosts": [],
+	"storage": {
+		"bookings": { "indexes": ["status", "date", "service", "createdAt"] }
+	},
+	"admin": {
+		"pages": [{ "path": "/bookings", "label": "Bookings", "icon": "calendar" }]
+	}
+}

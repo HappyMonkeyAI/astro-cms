@@ -6,6 +6,7 @@ import { password } from "@astro-cms/auth-password";
 import { localFromEnv, postgresFromEnv } from "@astro-cms/runtime-config";
 import migrationGuard from "migration-guard";
 import agentGuard from "agent-guard";
+import bookings from "bookings";
 import { smtpEmail } from "@astro-cms/email-smtp";
 import { cookieConsent } from "@astro-cms/cookie-consent";
 import { slider } from "@astro-cms/slider";
@@ -39,7 +40,7 @@ export default defineConfig({
 			plugins: [smtpEmail({ from: { email: "cms@spike.example.com", name: "Spike CMS" } }), cookieConsent(), slider(), formsPlugin()],
 			// Sandboxed: runs in a workerd child process on Node
 			// agent-guard: MCP publishes by non-admin (agent) accounts wait for an editor's approval
-			sandboxed: [migrationGuard, agentGuard],
+			sandboxed: [migrationGuard, agentGuard, bookings],
 			sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
 			storage: localFromEnv(),
 		}),

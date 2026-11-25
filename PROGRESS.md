@@ -14,6 +14,14 @@ Where astro-cms stands, newest first. Scope and decisions live in [SPEC.md](SPEC
 | 6 | Search and deployment | Done. pg-search (F2), `astro-cms new` recipe, setup-guard (F10) |
 | 7 | Pilot | **In progress.** Retest 3: F33 verified. With F34, go-live should be blocked only by one content fix (a post's `.mp3` link); form recipients still need a human |
 
+## 2026-11-25
+
+- **Bookings sandboxed plugin & Astro UI (`spike/emdash-site/plugins/bookings/`)** — built and verified a complete sandboxed `bookings` plugin replacing the broken pilot scaffold:
+  - Manifest & build setup: `package.json`, `emdash-plugin.jsonc` (`slug: "bookings"`, `bookings` storage collection indexed on `status`/`date`/`service`/`createdAt`, Admin `/bookings` page), `tsconfig.json`, and `vitest.config.ts` (`@emdash-cms/plugin-test/config` with 30s timeouts for workerd).
+  - Model & plugin runtime (`src/model.ts`, `src/plugin.ts`): strict ISO calendar date + `HH:MM` slot validation, service list normalisation (`consultation`, `development`, `design` defaults), active-slot conflict detection (ignoring cancelled bookings), public `availability` (`GET`) returning booked slots with zero customer PII, public `create` (`POST`) with honeypot check + double-booking `SLOT_UNAVAILABLE` rejection, permission-gated `list` (`content:read`), `update` & `cancel` (`content:edit_any`), `admin` Block Kit dashboard (`confirm:<id>`, `cancel:<id>`, `refresh`, `save_services` form), and 5 MCP tools (`checkAvailability` -> `mcpAvailability`, `createBooking` -> `mcpCreate`, `listBookings`, `updateBooking`, `cancelBooking`).
+  - Astro UI & wiring: added `src/components/BookingCard.astro`, `src/components/BookingForm.astro`, and `src/pages/book.astro`; registered `bookings` in `spike/emdash-site/package.json` and `spike/emdash-site/astro.config.mjs`.
+  - **Verification (`plugins/bookings`)**: `npm run validate`, `npm run typecheck`, `npm run build` (`dist/index.mjs`, `dist/plugin.mjs`, `dist/manifest.json`), and `npm test` (`1` test file, `9/9` tests passing via `createPluginTestHost` and `createPluginRuntimeTestHost`).
+
 ## 2026-10-29
 
 ### Pilot, first run (`70d37cc`, handoff `spike/results/pilot-dev-handoff.md`)

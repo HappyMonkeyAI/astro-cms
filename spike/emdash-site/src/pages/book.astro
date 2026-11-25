@@ -1,0 +1,36 @@
+---
+import Base from "../layouts/Base.astro";
+import BookingForm from "../components/BookingForm.astro";
+---
+
+<Base
+	title="Book an Appointment"
+	description="Choose a service and reserve an available time slot."
+>
+	<section class="band">
+		<div class="frame booking-page">
+			<header class="booking-page__header">
+				<h1>Book an Appointment</h1>
+				<p>Select a service, date, and open time slot to submit a booking request.</p>
+			</header>
+			<BookingForm />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.booking-page {
+		padding-block: 2.5rem;
+		display: grid;
+		gap: 1.5rem;
+	}
+
+	.booking-page__header h1 {
+		margin: 0 0 0.5rem;
+	}
+
+	.booking-page__header p {
+		margin: 0;
+		opacity: 0.85;
+	}
+</style>
