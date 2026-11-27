@@ -132,6 +132,23 @@ const todayIso = new Date().toISOString().slice(0, 10);
 			feedbackEl.textContent = text;
 		};
 
+		const unwrapRoutePayload = (raw: unknown): Record<string, unknown> | null => {
+			if (!raw || typeof raw !== "object") return null;
+			const obj = raw as Record<string, unknown>;
+			if (obj.success === false) {
+				const err = obj.error;
+				const message =
+					err && typeof err === "object" && typeof (err as Record<string, unknown>).message === "string"
+						? String((err as Record<string, unknown>).message)
+						: "Request failed.";
+				return { ok: false, message };
+			}
+			if (obj.success === true && obj.data && typeof obj.data === "object") {
+				return obj.data as Record<string, unknown>;
+			}
+			return obj;
+		};
+
 		const syncServices = (services: string[]) => {
 			if (!(serviceEl instanceof HTMLSelectElement) || services.length === 0) return;
 			const current = serviceEl.value;
@@ -174,11 +191,12 @@ const todayIso = new Date().toISOString().slice(0, 10);
 				const params = new URLSearchParams({ date });
 				if (service) params.set("service", service);
 				const response = await fetch(`/_emdash/api/plugins/bookings/availability?${params.toString()}`);
-				const payload = await response.json();
+				const payload = unwrapRoutePayload(await response.json());
 
 				if (!response.ok || !payload?.ok) {
 					if (hintEl instanceof HTMLElement) {
-						hintEl.textContent = payload?.message || "Could not verify availability.";
+						hintEl.textContent =
+							typeof payload?.message === "string" ? payload.message : "Could not verify availability.";
 					}
 					return;
 				}
@@ -247,20 +265,25 @@ const todayIso = new Date().toISOString().slice(0, 10);
 
 					const response = await fetch("/_emdash/api/plugins/bookings/create", {
 						method: "POST",
-						headers: { "Content-Type": "application/json" },
+						headers: {
+							"Content-Type": "application/json",
+							"X-EmDash-Request": "1",
+						},
 						body: JSON.stringify(body),
 					});
-					const payload = await response.json();
+					const payload = unwrapRoutePayload(await response.json());
 
 					if (!response.ok || !payload?.ok) {
 						showFeedback(
 							"error",
-							payload?.message || "Unable to submit your booking. Please try another slot.",
+							typeof payload?.message === "string"
+								? payload.message
+								: "Unable to submit your booking. Please try another slot.",
 						);
 						return;
 					}
 
-					const booking = payload.booking;
+					const booking = payload.booking as Record<string, string>;
 					showFeedback(
 						"success",
 						`Booking request received (${booking.status}) for ${booking.service} on ${booking.date} at ${booking.time}. Reference: ${booking.id}`,

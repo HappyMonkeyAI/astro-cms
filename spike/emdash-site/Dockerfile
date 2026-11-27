@@ -1,12 +1,13 @@
 FROM node:24-bookworm-slim AS builder
 WORKDIR /app
+# Build the sandboxed plugins from source (their dist/ is not committed)
+COPY plugins ./plugins
+RUN --mount=type=cache,target=/root/.npm cd plugins/migration-guard && npm install --no-audit --no-fund && npm run build
+RUN --mount=type=cache,target=/root/.npm cd plugins/agent-guard && npm install --no-audit --no-fund && npm run build
+RUN --mount=type=cache,target=/root/.npm cd plugins/bookings && npm install --no-audit --no-fund && npm run build
 COPY package*.json ./
 COPY packages ./packages
-# Build the sandboxed plugin from source (its dist/ is not committed)
-COPY plugins ./plugins
-RUN cd plugins/migration-guard && npm install --no-audit --no-fund && npm run build
-RUN cd plugins/agent-guard && npm install --no-audit --no-fund && npm run build
-RUN npm install --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
 COPY scripts ./scripts
 RUN node scripts/patch-emdash.mjs
 COPY . .
@@ -26,6 +27,8 @@ COPY --from=builder /app/plugins/migration-guard/dist ./plugins/migration-guard/
 COPY --from=builder /app/plugins/migration-guard/package.json /app/plugins/migration-guard/emdash-plugin.jsonc ./plugins/migration-guard/
 COPY --from=builder /app/plugins/agent-guard/dist ./plugins/agent-guard/dist
 COPY --from=builder /app/plugins/agent-guard/package.json /app/plugins/agent-guard/emdash-plugin.jsonc ./plugins/agent-guard/
+COPY --from=builder /app/plugins/bookings/dist ./plugins/bookings/dist
+COPY --from=builder /app/plugins/bookings/package.json /app/plugins/bookings/emdash-plugin.jsonc ./plugins/bookings/
 # Patched emdash modules import @astro-cms/pg-search at runtime too (node_modules link to packages/)
 COPY --from=builder /app/packages/pg-search ./packages/pg-search
 RUN mkdir -p /app/data/uploads
